@@ -132,7 +132,18 @@ contract AltairVR is StandardToken {
   }
   
   function recalcTokensToBuy(uint256 _weiAmount, uint256 _tokenRate) internal view returns(uint256, uint256) {
-    
+
+    uint256 tokensToMint = _weiAmount.mul(_tokenRate);
+    uint256 redundantTokens = 0;
+    uint _totalSupply = totalSupply;
+    uint256 nextTotalSupply = _totalSupply.add(tokensToMint);
+
+    if (nextTotalSupply > TOKENSTOSALE) {
+      redundantTokens = nextTotalSupply.sub(TOKENSTOSALE);
+      tokensToMint = tokensToMint.sub(redundantTokens);
+    }
+
+    return (tokensToMint, redundantTokens);
   }
 
   function finalizeSale() internal {
