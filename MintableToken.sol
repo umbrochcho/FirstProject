@@ -9,20 +9,21 @@ import './BurnableToken.sol';
  * @dev Simple ERC20 Token example, with mintable token creation
  * @dev Issue: * https://github.com/OpenZeppelin/zeppelin-solidity/issues/120
  * Based on code by TokenMarketNet: https://github.com/TokenMarketNet/ico/blob/master/contracts/MintableToken.sol
- */
+ * @notice Inspired by OpenZeppelin (https://github.com/OpenZeppelin/zeppelin-solidity)
+*/
 
 contract MintableToken is BurnableToken {
   
-  event MintingStarted(uint moment);
+  event MintingStarted(address indexed by, uint moment);
   event Mint(address indexed to, uint256 amount);
-  event MintingFinished(uint moment);
+  event MintingFinished(address indexed by, uint moment);
 
   bool public minting = false;
-  uint64 public tokenHolderCnt = 0;
+  uint256 public tokenHolderCnt = 0;
 
 
   modifier canMint() {
-    require(minting && totalSupply < MAXSUPPLY);
+    require(minting && totalSupply <= MAXSUPPLY);
     _;
   }
 
@@ -59,7 +60,7 @@ contract MintableToken is BurnableToken {
    */
   function enableMinting() internal {
     minting = true;
-    MintingStarted(now);
+    MintingStarted(msg.sender, now);
   }
 
   /**
@@ -68,6 +69,6 @@ contract MintableToken is BurnableToken {
    */
   function disableMinting() internal {
     minting = false;
-    MintingFinished(now);
+    MintingFinished(msg.sender, now);
   }
 }

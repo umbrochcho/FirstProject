@@ -1,5 +1,6 @@
 pragma solidity ^0.4.18;
 
+
 import './StandardToken.sol';
 
 /**
@@ -9,6 +10,7 @@ import './StandardToken.sol';
  * token purchases and the crowdsale will assign them tokens based
  * on a token per ETH rate. Funds collected are forwarded to a wallet
  * as they arrive.
+ * @notice Inspired by OpenZeppelin (https://github.com/OpenZeppelin/zeppelin-solidity)
  */
 contract AltairVR is StandardToken {
   using SafeMath for uint256;
@@ -211,7 +213,7 @@ contract AltairVR is StandardToken {
         return 0;
     }
       
-    if (_now > _startTime.add(tmCrowdsale1End) && _now < _startTime.add(tmCrowdsale2End)) {
+    if (_now >= _startTime.add(tmCrowdsale1End) && _now < _startTime.add(tmCrowdsale2End)) {
         return tmCrowdsale2Add;
     }
     if (_now >= _startTime.add(tmCrowdsale2End) && _now < _startTime.add(tmCrowdsale3End)) {
@@ -221,7 +223,7 @@ contract AltairVR is StandardToken {
         return tmCrowdsale4Add;
     }
       
-    if (_now <= _startTime.add(tmCrowdsale1End)) {
+    if (_now < _startTime.add(tmCrowdsale1End)) {
         return tmCrowdsale1Add;
     }
     

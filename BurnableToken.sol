@@ -5,6 +5,7 @@ import './BasicToken.sol';
 /**
  * @title Burnable Token
  * @dev Token that can be irreversibly burned (destroyed).
+ * @notice Inspired by OpenZeppelin (https://github.com/OpenZeppelin/zeppelin-solidity)
  */
 contract BurnableToken is AltairVRToken {
 

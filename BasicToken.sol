@@ -8,6 +8,7 @@ import './SafeMath.sol';
 /**
  * @title Basic token
  * @dev Basic version of StandardToken, with no allowances.
+ * @notice Inspired by OpenZeppelin (https://github.com/OpenZeppelin/zeppelin-solidity)
  */
 contract AltairVRToken is Pausable, ERC20Basic {
   using SafeMath for uint256;
@@ -20,14 +21,15 @@ contract AltairVRToken is Pausable, ERC20Basic {
 
   uint constant MAXSUPPLY = 100000000 * 1 ether;
   uint constant MINSUPPLY = 10000000 * 1 ether;
-  string name = "AltairVR token";
-  string symbol = "AVR";
-  uint8 decimals = 18;
+  string public name = "AltairVR token";
+  string public symbol = "AVR";
+  uint8 public decimals = 18;
+  string public version = "0.1";
 
   //predefined accounts 
-  address teamAddress = address(0); //NEED TO BE REAL ADDRESS!!!
-  address platformAddress = address(0); //NEED TO BE REAL ADDRESS!!!
-  address bountyAddress = address(0); //NEED TO BE REAL ADDRESS!!!
+  address public teamAddress = address(0); //NEED TO BE REAL ADDRESS!!!
+  address public platformAddress = address(0); //NEED TO BE REAL ADDRESS!!!
+  address public bountyAddress = address(0); //NEED TO BE REAL ADDRESS!!!
 
   uint256 teamShare = 0;
   uint256 platformShare = 0;
@@ -44,8 +46,8 @@ contract AltairVRToken is Pausable, ERC20Basic {
   uint freezeCount = 0;
 
 
-  event Freezed(address who, uint256 freezeEnd, uint256 amount);
-  event UnFreezed(address who, uint256 amount);
+  event Freezed(address indexed who, uint256 freezeEnd, uint256 amount);
+  event UnFreezed(address indexed who, uint256 amount);
 
 
   modifier whenTokenNormal() {
@@ -58,23 +60,7 @@ contract AltairVRToken is Pausable, ERC20Basic {
     _;
   }
 
-  function AltairVRToken() public {
-    FreezeItem memory freeze;
-    if (teamAddress != address(0)) {
-      freezed[teamAddress] = true;
-      freeze.date = teamFreezeEnd;
-      freeze.sum = 0;
-      freezes[teamAddress] = freeze;
-      freezeCount = 1;
-    }
-
-    if (bountyAddress != address(0)) {
-      freezed[bountyAddress] = true;
-      freeze.date = bountyFreezeEnd;
-      freeze.sum = 0;
-      freezes[bountyAddress] = freeze;
-      freezeCount = 2;
-    }
+  function AltairVRToken() public Pausable() {
   }
 
   /**

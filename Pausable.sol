@@ -7,13 +7,15 @@ import "./Ownable.sol";
 /**
  * @title Pausable
  * @dev Base contract which allows children to implement an emergency stop mechanism.
+ * @notice Inspired by OpenZeppelin (https://github.com/OpenZeppelin/zeppelin-solidity)
  */
 contract Pausable is Ownable {
-  event Pause();
-  event Unpause(uint duration);
+  event Pause(address indexed who, uint256 when);
+  event Unpause(address indexed who, uint256 when, uint256 duration);
 
   bool public paused = false;
-  uint pauseStart = 0;
+  uint256 pauseStart = 0;
+  uint256 totalDuration = 0;
 
 
   /**
@@ -38,7 +40,7 @@ contract Pausable is Ownable {
   function pause() onlyOwner whenNotPaused public {
     paused = true;
     pauseStart = now;
-    Pause();
+    Pause(msg.sender, now);
   }
 
   /**
@@ -46,7 +48,11 @@ contract Pausable is Ownable {
    */
   function unpause() onlyOwner whenPaused public {
     paused = false;
-    Unpause(now - pauseStart);
+    uint256 _now = now;
+    uint256 _duration = _now - pauseStart;    
+    pauseStart = 0;
+    totalDuration += _duration;
+    Unpause(msg.sender, _now, _duration);
   }
 
   /**
