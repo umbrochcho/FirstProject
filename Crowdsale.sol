@@ -13,7 +13,7 @@ import './StandardToken.sol';
 contract AltairVR is StandardToken {
   using SafeMath for uint256;
 
-  enum SaleState {closedPresale, closedPresaleEnded, publicPresale, publicPresaleEnded, crowdSale, crowdSaleEnded, Finalized}
+  enum SaleState {closedPresale, closedPresaleEnded, publicPresale, publicPresaleEnded, crowdSale, Finalized}
 
   SaleState saleState = SaleState.closedPresale;
   SaleState nextState = SaleState.publicPresale; 
@@ -28,7 +28,47 @@ contract AltairVR is StandardToken {
   // amount of raised money in wei
   uint256 public weiRaised;
 
-  event SaleStageStarted(string name, uint date);
+ // sale state properties
+    uint256 constant endClosedPresale = 1515974399; //14.01.2018 23:59:59 GMT
+    uint256 constant hardClosedPresale = 700 * 1 ether;
+    uint256 constant minWeiDepositClosedPresale = 40 * 1 ether;
+
+    uint256 constant startPublicPresale = 1515974400; //15.01.2018 0:00:00 GMT
+    uint256 constant endPublicPresale = 1517270399;   //29.01.2018 23:59:59 GMT
+    uint256 constant hardPublicPresale = 5000 * 1 ether;
+    uint256 constant minWeiDepositPublicPresale = 50 * 1 finney;
+
+    uint256 constant startCrowdsale = 1520812800; //12.03.2018 0:00:00 GMT
+    uint256 constant endCrowdsale = 1524700799;   //25.04.2018 23:59:59 GMT
+    uint256 constant minWeiDepositCrowdsale = 50 * 1 finney;
+
+  // bonuses 
+  // wei amount bonuses
+  // applicable to all buy transaction
+  
+  uint256 constant am1Start = 2000 * 1 ether;
+  uint256 constant am1rateAdd = 20;
+  uint256 constant am2Start = 5000 * 1 ether;
+  uint256 constant am2rateAdd = 28;
+  uint256 constant am3Start = 10000 * 1 ether;
+  uint256 constant am3rateAdd = 40;
+  
+  //time bonuses
+  //applicable in specific sale state
+  
+  uint256 constant tmClosedPresaleAdd = 280;
+  uint256 constant tmPublicPresaleAdd = 100;
+  uint256 constant tmCrowdsale1End = 1 days;
+  uint256 constant tmCrowdsale1Add = 60;
+  uint256 constant tmCrowdsale2End = 1 weeks;
+  uint256 constant tmCrowdsale2Add = 40;
+  uint256 constant tmCrowdsale3End = 2 * 1 weeks;
+  uint256 constant tmCrowdsale3Add = 28;
+  uint256 constant tmCrowdsale4End = 3 * 1 weeks;
+  uint256 constant tmCrowdsale4Add = 20;
+
+  event SaleStateStarted(SaleState state, uint date);
+  
   /**
    * event for token purchase logging
    * @param purchaser who paid for the tokens
@@ -43,6 +83,7 @@ contract AltairVR is StandardToken {
 
     tokenState = TokenState.tokenSaling;
     enableMinting();
+    SaleStateStarted(SaleState.closedPresale, now);
   }
 
   // fallback function can be used to buy tokens
@@ -54,46 +95,36 @@ contract AltairVR is StandardToken {
   /**
    *  State automaton for sale.
    *  @dev Contains main logic of sale process. Because in this function we change state 
-   *       of contract we should not revert in any case. Returned boolean determine will
+   *       of contract we should not revert in any case. Returns boolean determine will
    *       tokens be saled in this transaction or not
-   *  @param _weiAmount Amount of wei sent to by tokens
+   *  @param _weiAmount Amount of wei sent to buy tokens
    */
-  function checkSaleState(uint256 _weiAmount) internal returns (uint256, uint256, bool) {
+  function checkSaleState(uint256 _weiAmount) internal returns (uint256 weiAmount, uint256 weiToReturn, uint256 realRate, bool canBuyTokens) {
     // trying to decrease reads from storage
     uint256 _weiRaised = weiRaised;
     uint256 _nextWeiRaised = _weiRaised.add(_weiAmount);
     uint256 _now = now;
     uint256 _totalSupply = totalSupply;
     // this well be returned
-    bool result = false;
-    uint256 _weiToReturn = 0;
-
+    weiAmount = _weiAmount;
+    weiToReturn = 0;
+    realRate = rate;
+    canBuyTokens = false;
     //characteristics of sale states
-
-    uint256 endClosedPresale = 1515974399; //14.01.2018 23:59:59 GMT
-    uint256 hardClosedPresale = 700 * 1 ether;
-    uint256 minWeiDepositClosedPresale = 40 * 1 ether;
-
-    uint256 startPublicPresale = 1515974400; //15.01.2018 0:00:00 GMT
-    uint256 endPublicPresale = 1517270399;   //29.01.2018 23:59:59 GMT
-    uint256 hardPublicPresale = 5000 * 1 ether;
-    uint256 minWeiDepositPublicPresale = 50 * 1 finney;
-
-    uint256 startCrowdsale = 1520812800; //12.03.2018 0:00:00 GMT
-    uint256 endCrowdsale = 1524700799;   //25.04.2018 23:59:59 GMT
-    uint256 hardCrowdsale = TOKENSTOSALE;
-    uint256 minWeiDepositCrowdsale = 50 * 1 finney;
 
     if (saleState == SaleState.closedPresale) {
       if (_weiRaised >= hardClosedPresale || _now > endClosedPresale) {
           saleState = SaleState.closedPresaleEnded;
+          SaleStateStarted(SaleState.closedPresaleEnded, _now);
       } else {
         if (_weiAmount >= minWeiDepositClosedPresale) {
           if (_nextWeiRaised > hardClosedPresale) {
-            _weiToReturn = _nextWeiRaised.sub(hardClosedPresale);
-            _weiAmount = _weiAmount.sub(_weiToReturn);
+            weiToReturn = _nextWeiRaised.sub(hardClosedPresale);
+            weiAmount = weiAmount.sub(weiToReturn);
           }
-          result = true;
+          realRate = realRate.add(tmClosedPresaleAdd);
+          realRate = realRate.add(getAmountWeiBonus(weiAmount));
+          canBuyTokens = true;
         }
       }
     }
@@ -101,6 +132,10 @@ contract AltairVR is StandardToken {
     if (saleState == SaleState.closedPresaleEnded) {
       if (_now >= startPublicPresale) {
           saleState = SaleState.publicPresale;
+          SaleStateStarted(SaleState.publicPresale, _now);
+      } else {
+          weiToReturn = weiAmount;
+          weiAmount = 0;
       }
     }
 
@@ -108,49 +143,90 @@ contract AltairVR is StandardToken {
       if (_now >= startPublicPresale && _now <= endPublicPresale && _weiRaised < hardPublicPresale) {
         if (_weiAmount >= minWeiDepositPublicPresale) {
           if (_nextWeiRaised > hardPublicPresale) {
-            _weiToReturn = _nextWeiRaised.sub(hardPublicPresale);
-            _weiAmount = _weiAmount.sub(_weiToReturn);
+            weiToReturn = _nextWeiRaised.sub(hardPublicPresale);
+            weiAmount = weiAmount.sub(weiToReturn);
           }
-          result = true;
+          realRate = realRate.add(tmPublicPresaleAdd);
+          realRate = realRate.add(getAmountWeiBonus(weiAmount));
+          canBuyTokens = true;
         }
       } else {
         saleState = SaleState.publicPresaleEnded;
+        SaleStateStarted(SaleState.publicPresaleEnded, _now);
       }
     }
-
+    
     if (saleState == SaleState.publicPresaleEnded) {
-      if (_now >= startCrowdsale && _now <= endCrowdsale && _totalSupply < hardCrowdsale) {
+        if (_now >= startCrowdsale) {
+            saleState = SaleState.crowdSale;
+            SaleStateStarted(SaleState.crowdSale, _now);
+        } else {
+          weiToReturn = weiAmount;
+          weiAmount = 0;
+        }
+
+    }
+    
+    if (saleState == SaleState.crowdSale) {
+      if (_now >= startCrowdsale && _now <= endCrowdsale && _totalSupply < TOKENSTOSALE) {
         if (_weiAmount >= minWeiDepositCrowdsale) {
-            result = true;
+            canBuyTokens = true;
+            realRate = realRate.add(getAmountWeiBonus(weiAmount));
+            realRate = realRate.add(getTimeCrowdsaleBonus(startCrowdsale, _now));
         }
       } else {
         saleState = SaleState.Finalized;
+        SaleStateStarted(SaleState.Finalized, _now);
       }
     }
-
-    return (_weiAmount, _weiToReturn, result);
+    
+    if (saleState == SaleState.Finalized) {
+          weiToReturn = weiAmount;
+          weiAmount = 0;
+    }
+    
+    return (weiAmount, weiToReturn, realRate, canBuyTokens);
   }
   
-  function recalcTokensToBuy(uint256 _weiAmount, uint256 _tokenRate) internal view returns(uint256, uint256) {
+  function getAmountWeiBonus(uint256 _weiAmount) internal pure returns(uint256) {
+      
+      if (_weiAmount < am1Start) return 0;
 
-    uint256 tokensToMint = _weiAmount.mul(_tokenRate);
-    uint256 redundantTokens = 0;
-    uint _totalSupply = totalSupply;
-    uint256 nextTotalSupply = _totalSupply.add(tokensToMint);
-
-    if (nextTotalSupply > TOKENSTOSALE) {
-      redundantTokens = nextTotalSupply.sub(TOKENSTOSALE);
-      tokensToMint = tokensToMint.sub(redundantTokens);
+      if (_weiAmount >= am1Start && _weiAmount < am2Start) {
+          return am1rateAdd;
+      }
+      
+      if (_weiAmount >= am2Start && _weiAmount < am3Start) {
+          return am2rateAdd;
+      }
+      
+      if (_weiAmount >= am3Start) {
+          return am3rateAdd;
+      }
+  }
+      
+  function getTimeCrowdsaleBonus(uint256 _startTime, uint256 _now) internal pure returns(uint256) {
+      
+    if (_now >= _startTime.add(tmCrowdsale4End)) {
+        return 0;
     }
-
-    return (tokensToMint, redundantTokens);
+      
+    if (_now > _startTime.add(tmCrowdsale1End) && _now < _startTime.add(tmCrowdsale2End)) {
+        return tmCrowdsale2Add;
+    }
+    if (_now >= _startTime.add(tmCrowdsale2End) && _now < _startTime.add(tmCrowdsale3End)) {
+        return tmCrowdsale3Add;
+    }
+    if (_now >= _startTime.add(tmCrowdsale3End) && _now < _startTime.add(tmCrowdsale4End)) {
+        return tmCrowdsale4Add;
+    }
+      
+    if (_now <= _startTime.add(tmCrowdsale1End)) {
+        return tmCrowdsale1Add;
+    }
+    
   }
-
-  function finalizeSale() internal {
-
-  }
-
-  // 
+  
   /**
    *  low level token purchase function.
    *  @dev Because in this function we change state of sale through `validPurchase` cal 
@@ -158,36 +234,45 @@ contract AltairVR is StandardToken {
    *       to `beneficiary` manually.
    *  @param beneficiary Account is trying to buy tokens
    */
-  function buyTokens(address beneficiary) public payable whenTokenSaling {
+  function buyTokens(address beneficiary) public payable whenNotPaused whenTokenSaling {
 
+    uint256 _totalSupply = totalSupply;
     uint256 weiAmount;
     uint256 weiToReturn;
+    uint256 _rate;
     bool canBuyTokens;
 
-    uint256 tokensToMint;
-    uint256 redundantTokens;
-
-    (weiAmount, weiToReturn, canBuyTokens) = checkSaleState(msg.value);
+    (weiAmount, weiToReturn, _rate, canBuyTokens) = checkSaleState(msg.value);
 
     if (beneficiary != address(0) && canBuyTokens && weiAmount > 0) {
     
-      uint256 _rate = rate;
-      (tokensToMint, redundantTokens) = recalcTokensToBuy(weiAmount, _rate);
+      uint256 tokensToMint = weiAmount.mul(_rate);
+      uint256 redundantTokens = 0;
+      uint256 _nextTotalSupply = _totalSupply.add(tokensToMint);
+      
+      if (_nextTotalSupply > TOKENSTOSALE) {
+          redundantTokens = _nextTotalSupply.sub(TOKENSTOSALE);
+          weiAmount = weiAmount.sub(redundantTokens.div(_rate));
+          weiToReturn = msg.value - weiAmount;
+          tokensToMint = tokensToMint.sub(redundantTokens);
+      }
     
-      weiToReturn = weiToReturn.add(redundantTokens.div(_rate));
-    if (_nextTotalSupply > TOKENSTOSALE) {
-      weiAmount = _tokensToSale.mul(rate);
-      weiToReturn = msg.value - weiAmount;
-      tokens = _tokensToSale;
-    }
-    mint(beneficiary, tokensToMint);
-    // update state
-    weiRaised = weiRaised.add(weiAmount);
-    tokensToSale = tokensToSale.sub(tokens);
+      mint(beneficiary, tokensToMint);
+      
+      // update state
+      weiRaised = weiRaised.add(weiAmount);
+      //    tokensToSale = tokensToSale.sub(tokens);
 
-    forwardFunds();
+      forwardFunds(weiAmount);
 
-    TokenPurchase(msg.sender, beneficiary, weiAmount, tokens);
+      TokenPurchase(msg.sender, beneficiary, weiAmount, tokensToMint);
+    } 
+    
+    if (weiToReturn > 0) {
+        returnFunds(beneficiary, weiToReturn);
+        if (saleState == SaleState.Finalized) {
+            finalizeSale();
+        }
     }
   }
 
@@ -198,13 +283,14 @@ contract AltairVR is StandardToken {
   }
 
   // send ether back to `msg.sender`
-  function returnFunds(uint256 _weiToReturn) internal {
-    msg.sender.call.gas(30000).value(_weiToReturn);
+  function returnFunds(address withdrawer, uint256 _weiToReturn) internal {
+    withdrawer.call.gas(30000).value(_weiToReturn)();
   }
 
   // @return true if crowdsale event has ended
-  function hasEnded() public view returns (bool) {
-    return now > endTime;
+  function finalizeSale() internal {
+    
+    tokenState = TokenState.tokenNormal;
   }
 
 
