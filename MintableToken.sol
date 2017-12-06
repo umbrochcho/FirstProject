@@ -47,10 +47,6 @@ contract MintableToken is BurnableToken {
     }
     Mint(_to, _amount);
     Transfer(this, _to, _amount);
-    if (nextSupply > MAXSUPPLY) {
-      tokenState = TokenState.tokenNormal;
-      disableMinting();
-    }
     return true;
   }
 

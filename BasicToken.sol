@@ -35,9 +35,6 @@ contract AltairVRToken is Pausable, ERC20Basic {
   uint256 platformShare = 0;
   uint256 bountyShare = 0;
   
-  uint256 teamFreezeEnd = 0;
-  uint256 bountyFreezeEnd = 0;
-
   // we need to freeze shares from sale for team and bounty accounts
   mapping(address => bool) freezed;
   struct FreezeItem {uint date; uint256 sum; }
