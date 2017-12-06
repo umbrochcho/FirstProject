@@ -215,6 +215,9 @@ contract AltairVR is StandardToken {
             realRate = realRate.add(getTimeCrowdsaleBonus(startCrowdsale, _now));
         }
       } else {
+        if (_now < endCrowdsale) {
+          saleEndTime = _now;
+        }
         saleState = SaleState.Finalized;
         SaleStateStarted(SaleState.Finalized, _now);
       }
@@ -223,9 +226,6 @@ contract AltairVR is StandardToken {
     if (saleState == SaleState.Finalized) {
           weiToReturn = weiAmount;
           weiAmount = 0;
-          if (_now < endCrowdsale) {
-            saleEndTime = _now;
-          }
     }
     
     return (weiAmount, weiToReturn, realRate, canBuyTokens);
