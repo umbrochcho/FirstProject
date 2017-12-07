@@ -20,7 +20,7 @@ contract AltairVR is StandardToken {
   SaleState saleState = SaleState.closedPresale;
   
   // address where funds are collected MUST BE SET BEFORE DEPLOY!!!!!!!!!
-  address public wallet;
+  address public wallet = 0;
 
   uint256 constant TOKENSTOSALE = 50000000 * 1 ether;
   // how many token units a buyer gets per wei
@@ -30,9 +30,9 @@ contract AltairVR is StandardToken {
   uint256 public weiRaised;
 
   // special balances share in percents of totlalSupply
-  uint256 teamSharePercents = 15;
-  uint256 platformSharePercents = 32;
-  uint256 bountySharePercents = 3;
+  uint256 constant teamSharePercents = 15;
+  uint256 constant platformSharePercents = 32;
+  uint256 constant bountySharePercents = 3;
 
  // sale state properties
     uint256 constant endClosedPresale = 1515974399; //14.01.2018 23:59:59 GMT
@@ -76,27 +76,28 @@ contract AltairVR is StandardToken {
   // when sale ended. It equals endCrowdsale constant or time when
   // sale enter Finalized state
 
-  uint256 saleEndTime = endCrowdsale;
+  uint256 public saleEndTime = endCrowdsale;
 
   //share freez duration for team and bounty
 
-  uint256 teamShareFreezeDuration = 365 days;
-  uint256 bountyShareFreezeDuration = 45 days;
+  uint256 constant teamShareFreezeDuration = 365 days;
+  uint256 constant bountyShareFreezeDuration = 45 days;
 
   event SaleStateStarted(SaleState state, uint date);
+  event MinimumPaymentNotReached(address payer, uint256 weiAmount, uint256 minimumRequired);
   
   /**
    * event for token purchase logging
-   * @param purchaser who paid for the tokens
    * @param beneficiary who got the tokens
    * @param value weis paid for purchase
    * @param amount amount of tokens purchased
    */
-  event TokenPurchase(address indexed purchaser, address indexed beneficiary, uint256 value, uint256 amount);
+  event TokenPurchase(address indexed beneficiary, uint256 value, uint256 amount);
 
 
   function AltairVR() public {
-
+    
+    // adding to owner funding wallet
     addOwner(wallet);
     
     freezeCount = 2;
@@ -105,19 +106,34 @@ contract AltairVR is StandardToken {
     //special addresses 
     teamAddress = 0; //MUST BE SET BEFORE DEPLOY!!!!!!!!!
 
+    // add team address to owners
     addOwner(teamAddress);
+    // make team accessible for token burning
+    addBurnable(teamAddress);
+    
+    //init freeze record for team
     freez.date = saleEndTime.add(teamShareFreezeDuration) - 1;
     freezed[teamAddress] = true;
     freezes[teamAddress] = freez;
 
     bountyAddress = 0; //MUST BE SET BEFORE DEPLOY!!!!!!!!!
+    
+    require(bountyAddress != 0);
+    
+    //init freeze record for bounty
     freez.date = saleEndTime.add(bountyShareFreezeDuration) - 1;
     freezed[bountyAddress] = true;
     freezes[bountyAddress] = freez;
 
     platformAddress = 0; //MUST BE SET BEFORE DEPLOY!!!!!!!!!
-
+    
+    if (platformAddress != 0) {
+        addOwner(platformAddress);
+        addBurner(platformAddress);
+    }
+    
     tokenState = TokenState.tokenSaling;
+    TokenStateChanged(tokenState, now);
     enableMinting();
     SaleStateStarted(SaleState.closedPresale, now);
   }
@@ -141,12 +157,13 @@ contract AltairVR is StandardToken {
     uint256 _nextWeiRaised = _weiRaised.add(_weiAmount);
     uint256 _now = now;
     uint256 _totalSupply = totalSupply;
-    // this well be returned
+    
+    // this will be returned
     weiAmount = _weiAmount;
     weiToReturn = 0;
     realRate = rate;
     canBuyTokens = false;
-    //characteristics of sale states
+    
 
     if (_totalSupply >= TOKENSTOSALE) {
       saleState = SaleState.Finalized;
@@ -165,6 +182,10 @@ contract AltairVR is StandardToken {
           realRate = realRate.add(tmClosedPresaleAdd);
           realRate = realRate.add(getAmountWeiBonus(weiAmount));
           canBuyTokens = true;
+        } else {
+          MinimumPaymentNotReached(msg.sender, weiAmount, minWeiDepositClosedPresale);
+          weiToReturn = weiAmount;
+          weiAmount = 0;
         }
       }
     }
@@ -189,6 +210,10 @@ contract AltairVR is StandardToken {
           realRate = realRate.add(tmPublicPresaleAdd);
           realRate = realRate.add(getAmountWeiBonus(weiAmount));
           canBuyTokens = true;
+        } else {
+          MinimumPaymentNotReached(msg.sender, weiAmount, minWeiDepositPublicPresale);
+          weiToReturn = weiAmount;
+          weiAmount = 0;
         }
       } else {
         saleState = SaleState.publicPresaleEnded;
@@ -213,6 +238,10 @@ contract AltairVR is StandardToken {
             canBuyTokens = true;
             realRate = realRate.add(getAmountWeiBonus(weiAmount));
             realRate = realRate.add(getTimeCrowdsaleBonus(startCrowdsale, _now));
+        } else {
+          MinimumPaymentNotReached(msg.sender, weiAmount, minWeiDepositCrowdsale);
+          weiToReturn = weiAmount;
+          weiAmount = 0;
         }
       } else {
         if (_now < endCrowdsale) {
@@ -233,17 +262,13 @@ contract AltairVR is StandardToken {
   
   function getAmountWeiBonus(uint256 _weiAmount) internal pure returns(uint256) {
       
-      if (_weiAmount < am1Start) { return 0; }
-
-      if (_weiAmount >= am1Start && _weiAmount < am2Start) {
+      if (_weiAmount < am1Start) { 
+          return 0; 
+      } else if (_weiAmount >= am1Start && _weiAmount < am2Start) {
           return am1rateAdd;
-      }
-      
-      if (_weiAmount >= am2Start && _weiAmount < am3Start) {
+      } else if (_weiAmount >= am2Start && _weiAmount < am3Start) {
           return am2rateAdd;
-      }
-      
-      if (_weiAmount >= am3Start) {
+      } else { // _weiAmount >= am3Start
           return am3rateAdd;
       }
   }
@@ -252,22 +277,15 @@ contract AltairVR is StandardToken {
       
     if (_now >= _startTime.add(tmCrowdsale4End)) {
         return 0;
-    }
-      
-    if (_now >= _startTime.add(tmCrowdsale1End) && _now < _startTime.add(tmCrowdsale2End)) {
-        return tmCrowdsale2Add;
-    }
-    if (_now >= _startTime.add(tmCrowdsale2End) && _now < _startTime.add(tmCrowdsale3End)) {
-        return tmCrowdsale3Add;
-    }
-    if (_now >= _startTime.add(tmCrowdsale3End) && _now < _startTime.add(tmCrowdsale4End)) {
+    } else if (_now >= _startTime.add(tmCrowdsale3End) && _now < _startTime.add(tmCrowdsale4End)) {
         return tmCrowdsale4Add;
-    }
-      
-    if (_now < _startTime.add(tmCrowdsale1End)) {
+    } else if (_now >= _startTime.add(tmCrowdsale2End) && _now < _startTime.add(tmCrowdsale3End)) {
+        return tmCrowdsale3Add;
+    } else if (_now >= _startTime.add(tmCrowdsale1End) && _now < _startTime.add(tmCrowdsale2End)) {
+        return tmCrowdsale2Add;
+    } else { // _now < _startTime.add(tmCrowdsale1End)
         return tmCrowdsale1Add;
     }
-    
   }
   
   /**
@@ -304,11 +322,10 @@ contract AltairVR is StandardToken {
       
       // update state
       weiRaised = weiRaised.add(weiAmount);
-      //    tokensToSale = tokensToSale.sub(tokens);
 
       forwardFunds(weiAmount);
 
-      TokenPurchase(msg.sender, beneficiary, weiAmount, tokensToMint);
+      TokenPurchase(beneficiary, weiAmount, tokensToMint);
     } 
     
     if (weiToReturn > 0) {
@@ -331,12 +348,18 @@ contract AltairVR is StandardToken {
     require(withdrawer.call.gas(100000).value(_weiToReturn)());
   }
 
+  /**
+   * @dev Function can be called only once. Calculates shares of special addresses
+   *      and switches token state to normal operation. No new tokens can be minted after 
+   *      successful call to this function.
+  */ 
   function finalizeSale() internal {
     uint256 _totalSupply = totalSupply;
 
     uint256 _share = (_totalSupply.mul(teamSharePercents)).div(100);
 
     mint(teamAddress, _share);
+    teamShare = _share;
     freezes[teamAddress].sum = _share;
     freezes[teamAddress].date = saleEndTime.add(teamShareFreezeDuration) - 1;
 
@@ -345,32 +368,49 @@ contract AltairVR is StandardToken {
     if (platformAddress != address(0)) {
       mint(platformAddress, _share);
     } else {
-      platformShare = _share;
       totalSupply = totalSupply.add(_share);
     }
+    platformShare = _share;
     
     _share = (_totalSupply.mul(bountySharePercents)).div(100);
 
     mint(bountyAddress, _share);
+    bountyShare = _share;
     freezes[bountyAddress].sum = _share;
     freezes[bountyAddress].date = saleEndTime.add(bountyShareFreezeDuration) - 1;
 
     disableMinting();
     tokenState = TokenState.tokenNormal;
+    TokenStateChanged(tokenState, now);
   }
 
-  function setPlatformAddress(address _newAddress) public whenNotPaused {
-    //can be set only when no team address set by any owner or when team address already set by current team
-    require(((platformAddress == address(0) && owners[msg.sender] == true) || platformAddress == msg.sender) && _newAddress != address(0));
-
+  /**
+   * @dev function sets address of platform which can be address of contract that does not 
+   *      exists when token sale in progress. Or changes existing address to other
+   */
+  function setPlatformAddress(address _newAddress) public whenNotPaused onlyOwner {
+    require(_newAddress != address(0));
+    require((platformAddress == 0 && owners[msg.sender]) || platformAddress == msg.sender);
     //address was never set. 
-    if (teamAddress == address(0)) {
+    if (platformAddress == address(0)) {
+      addOwner(_newAddress);
+      addBurner(_newAddress);
       balances[_newAddress] = balances[_newAddress].add(platformShare);
+      Transfer(0, _newAddress, platformShare);
     } else { 
+      addBurner(_newAddress);
+      removeBurner(platformAddress);
+      transferOwnership(_newAddress);
       balances[_newAddress] = balances[_newAddress].add(balances[platformAddress]);
+      Transfer(platformAddress, _newAddress, platformShare);
       balances[platformAddress] = 0;
     }
 
     platformAddress = _newAddress;
+  }
+  
+  function doFinalizeSale() public whenNotPaused whenTokenSaling onlyOwner {
+     require(saleState == SaleState.Finalized);
+     finalizeSale();
   }
 }

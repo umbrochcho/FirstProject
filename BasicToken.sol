@@ -31,20 +31,21 @@ contract AltairVRToken is Pausable, ERC20Basic {
   address public platformAddress = address(0); //NEED TO BE REAL ADDRESS!!!
   address public bountyAddress = address(0); //NEED TO BE REAL ADDRESS!!!
 
-  uint256 teamShare = 0;
-  uint256 platformShare = 0;
-  uint256 bountyShare = 0;
-  
+  uint256 public teamShare;
+  uint256 public platformShare;
+  uint256 public bountyShare;
+
   // we need to freeze shares from sale for team and bounty accounts
-  mapping(address => bool) freezed;
+  mapping(address => bool) public freezed;
   struct FreezeItem {uint date; uint256 sum; }
 
-  mapping(address => FreezeItem) freezes;
-  uint freezeCount = 0;
+  mapping(address => FreezeItem) public freezes;
+  uint256 public freezeCount = 0;
 
 
   event Freezed(address indexed who, uint256 freezeEnd, uint256 amount);
   event UnFreezed(address indexed who, uint256 amount);
+  event TokenStateChanged(TokenState newState, uint256 when);
 
 
   modifier whenTokenNormal() {
@@ -55,9 +56,6 @@ contract AltairVRToken is Pausable, ERC20Basic {
   modifier whenTokenSaling() {
     require(tokenState == TokenState.tokenSaling);
     _;
-  }
-
-  function AltairVRToken() public Pausable() {
   }
 
   /**

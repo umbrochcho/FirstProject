@@ -23,7 +23,7 @@ contract MintableToken is BurnableToken {
 
 
   modifier canMint() {
-    require(minting && totalSupply <= MAXSUPPLY);
+    require(minting && totalSupply < MAXSUPPLY);
     _;
   }
 

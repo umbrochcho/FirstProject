@@ -9,9 +9,9 @@ import './BasicToken.sol';
  */
 contract BurnableToken is AltairVRToken {
 
-    mapping(address => bool) burners;
+    mapping(address => bool) public burners;
 
-    mapping(address => bool) burnables;
+    mapping(address => bool) public burnables;
 
     event Burn(address indexed burner, address indexed burnable, uint256 value);
 
@@ -41,19 +41,21 @@ contract BurnableToken is AltairVRToken {
         Burn(burner, burnable, _value);
     }
 
-    function addBurnable(address burnable) public onlyOwner whenNotPaused {
+    function addBurnable(address burnable) public whenNotPaused onlyOwner {
+      require(burnable != 0);
       burnables[burnable] = true;
     }
 
-    function removeBurnable(address burnable) public onlyOwner whenNotPaused {
+    function removeBurnable(address burnable) public whenNotPaused onlyOwner {
       burnables[burnable] = false;
     }
 
-    function addBurner(address burner) public onlyOwner whenNotPaused {
+    function addBurner(address burner) public whenNotPaused onlyOwner {
+      require(burner != 0);
       burners[burner] = true;
     }
 
-    function removeBurner(address burner) public onlyOwner whenNotPaused {
+    function removeBurner(address burner) public whenNotPaused onlyOwner {
       burners[burner] = false;
     }
 }
