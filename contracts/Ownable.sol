@@ -47,8 +47,10 @@ contract Ownable {
    */
   function transferOwnership(address newOwner) public onlyOwner {
     require(newOwner != address(0));
-    owners[msg.sender] = false;
-    owners[newOwner] = true;
+    if (newOwner != msg.sender) {
+        owners[msg.sender] = false;
+	owners[newOwner] = true;
+    }
     OwnershipTransferred(msg.sender, newOwner);
   }
 
@@ -71,11 +73,11 @@ contract Ownable {
   function removeSelf() public onlyOwner {
     if (ownerCount == 1) {
       OwnershipRefusalRejected(msg.sender);
-      revert();
+    } else {
+        owners[msg.sender] = false;
+	ownerCount -= 1;
+        OwnershipCeased(msg.sender);
     }
-    owners[msg.sender] = false;
-    ownerCount -= 1;
-    OwnershipCeased(msg.sender);
   }
 
 }
