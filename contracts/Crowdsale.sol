@@ -326,7 +326,6 @@ contract AltairVR is StandardToken {
    */
   function buyTokens(address beneficiary) public payable whenNotPaused whenTokenSaling {
 
-    uint256 _totalSupply = totalSupply;
     uint256 weiAmount;
     uint256 weiToReturn;
     uint256 _rate;
@@ -338,8 +337,7 @@ contract AltairVR is StandardToken {
     
       uint256 tokensToMint = weiAmount.mul(_rate);
       uint256 redundantTokens = 0;
-      uint256 _nextTotalSupply = _totalSupply.add(tokensToMint);
-      
+
       redundantTokens = mint(beneficiary, tokensToMint);
       
       if (redundantTokens > 0) {
