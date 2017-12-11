@@ -59,7 +59,7 @@ contract AltairVR is StandardToken {
   uint256 constant am3Start = 10000 * 1 ether;
   uint256 constant am3rateAdd = 40;
   
-  //time bonuses
+  //time bonuses in tokens per ether
   //applicable in specific sale state
   
   uint256 constant tmClosedPresaleAdd = 280;
@@ -78,13 +78,42 @@ contract AltairVR is StandardToken {
 
   uint256 public saleEndTime = endCrowdsale;
 
-  //share freez duration for team and bounty
+  //share freez duration for team and bounty. 
+  //starts from `saleEndTime`
 
   uint256 constant teamShareFreezeDuration = 365 days;
   uint256 constant bountyShareFreezeDuration = 45 days;
 
+  
+  /**
+   * event for sale state change tracking
+   * @param state new sale state
+   * @param date when state started
+   */
   event SaleStateStarted(SaleState state, uint date);
-  event MinimumPaymentNotReached(address payer, uint256 weiAmount, uint256 minimumRequired);
+  
+  /**
+   * event for refunding reason tracking. Fires when wei received less than minimum
+   * @param payer address wei received from
+   * @param weiAmount weis paid for purchase
+   * @param minimumRequired minimal wei amount acceptable
+   */
+  event MinimumPaymentNotReached(address indexed payer, uint256 weiAmount, uint256 minimumRequired);
+  
+  /**
+   * event for refunding reason tracking. Fires when too much wei received
+   * @param payer who sent wei
+   * @param amount amount of wei returned 
+   */
+  event RedundantFundsReturned(address indexed payer, uint256 amount);
+  
+  /**
+   * event for fund forwarding logging
+   * @param from who sent weis
+   * @param to who received weis
+   * @param amount amount of weis forwarded
+   */
+  event FundsForwarded(address indexed from, address indexed to, uint256 amount);
   
   /**
    * event for token purchase logging
@@ -311,19 +340,17 @@ contract AltairVR is StandardToken {
       uint256 redundantTokens = 0;
       uint256 _nextTotalSupply = _totalSupply.add(tokensToMint);
       
-      if (_nextTotalSupply > TOKENSTOSALE) {
-          redundantTokens = _nextTotalSupply.sub(TOKENSTOSALE);
+      redundantTokens = mint(beneficiary, tokensToMint);
+      
+      if (redundantTokens > 0) {
           weiAmount = weiAmount.sub(redundantTokens.div(_rate));
           weiToReturn = msg.value - weiAmount;
-          tokensToMint = tokensToMint.sub(redundantTokens);
       }
-    
-      mint(beneficiary, tokensToMint);
-      
+
       // update state
       weiRaised = weiRaised.add(weiAmount);
 
-      forwardFunds(weiAmount);
+      forwardFunds(beneficiary, weiAmount);
 
       TokenPurchase(beneficiary, weiAmount, tokensToMint);
     } 
@@ -339,13 +366,15 @@ contract AltairVR is StandardToken {
 
   // send ether to the fund collection wallet
   // override to create custom fund forwarding mechanisms
-  function forwardFunds(uint256 _weiAmount) internal {
+  function forwardFunds(address _from, uint256 _weiAmount) internal {
     require(wallet.call.value(_weiAmount)());
+    FundsForwarded(_from, wallet, _weiAmount);
   }
 
   // send ether back to `msg.sender`
   function returnFunds(address withdrawer, uint256 _weiToReturn) internal {
     require(withdrawer.call.gas(100000).value(_weiToReturn)());
+    RedundantFundsReturned(withdrawer, _weiToReturn);
   }
 
   /**

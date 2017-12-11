@@ -23,7 +23,7 @@ contract MintableToken is BurnableToken {
 
 
   modifier canMint() {
-    require(minting && totalSupply < MAXSUPPLY);
+    require(minting);
     _;
   }
 
@@ -33,21 +33,23 @@ contract MintableToken is BurnableToken {
    * @param _amount The amount of tokens to mint.
    * @return A boolean that indicates if the operation was successful.
    */
-  function mint(address _to, uint256 _amount) internal canMint returns (bool) {
+  function mint(address _to, uint256 _amount) internal canMint returns (uint256 reminder) {
     uint256 currentSupply = totalSupply;
     uint256 nextSupply = currentSupply.add(_amount);
     if (nextSupply > MAXSUPPLY) {
-      _amount = _amount.sub(nextSupply.sub(MAXSUPPLY));
+      reminder = nextSupply.sub(MAXSUPPLY);    
+      _amount = _amount.sub(reminder);
     }
-    totalSupply = currentSupply.add(_amount);
-    uint256 holderBalance = balances[_to];
-    balances[_to] = holderBalance.add(_amount);
-    if (holderBalance == 0) {
-      tokenHolderCnt += 1;
+    if (_amount > 0) {
+        totalSupply = currentSupply.add(_amount);
+        balances[_to] = balances[_to].add(_amount);
+        if (balances[_to] == _amount) {
+            tokenHolderCnt += 1;
+        }
+        Mint(_to, _amount);
+        Transfer(this, _to, _amount);
     }
-    Mint(_to, _amount);
-    Transfer(this, _to, _amount);
-    return true;
+    return reminder;
   }
 
   /**
