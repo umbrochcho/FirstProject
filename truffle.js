@@ -24,7 +24,7 @@ module.exports = {
       network_id: '*', // eslint-disable-line camelcase
     },
     ropsten: {
-      provider: ropstenProvider,
+      provider: function() { return ropstenProvider; },
       network_id: 3, // eslint-disable-line camelcase
     },
     coverage: {
@@ -45,4 +45,19 @@ module.exports = {
       network_id: '*', // eslint-disable-line camelcase
     },
   },
+  mocha: {
+  		useColors: true
+  },
+  solc: {
+	 optimizer: {
+      enabled: false,
+      runs: 500
+    },
+    outputSelection: {
+      // Enable the metadata and bytecode outputs of every single contract.
+      "*": {
+        "*": [ "abi", "evm.bytecode" ]
+      }
+   }  
+  }
 };
