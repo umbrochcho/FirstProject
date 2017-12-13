@@ -1,3 +1,7 @@
 module.exports = function (error) {
-  assert.isAbove(error.message.search('revert'), -1, 'Error containing "revert" must be returned');
+  let errPos = error.message.search('revert');
+  if (errPos === -1) {
+    errPos = error.message.search('invalid opcode');
+  }
+  assert.isAbove(errPos, -1, 'Error containing "revert" or "invalid opcode" must be returned');
 };
