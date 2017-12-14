@@ -1,6 +1,6 @@
 pragma solidity ^0.4.18;
 
-import '../../contracts/BurnableToken.sol';
+import '../BurnableToken.sol';
 
 contract BurnableTokenMock is BurnableToken {
 

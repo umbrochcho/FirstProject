@@ -59,7 +59,7 @@ contract Pausable is Ownable {
    * @dev Override parent's method. When paused no change to state allowed
    * @param newOwner The address to transfer ownership to.
    */
-  function transferOwnership(address newOwner) public whenNotPaused onlyOwner {
+  function transferOwnership(address newOwner) public whenNotPaused {
     super.transferOwnership(newOwner);
   }
 
@@ -67,14 +67,14 @@ contract Pausable is Ownable {
    * @dev Override parent's method. When paused no change to state allowed
    * @param newOwner The address of another owner.
    */
-  function addOwner(address newOwner) public whenNotPaused onlyOwner {
+  function addOwner(address newOwner) public whenNotPaused {
     super.addOwner(newOwner);
   }
 
   /**
    * @dev Override parent's method. When paused no change to state allowed
    */
-  function removeSelf() public whenNotPaused onlyOwner {
+  function removeSelf() public whenNotPaused {
     super.removeSelf();
   }
 

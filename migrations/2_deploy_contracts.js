@@ -5,5 +5,5 @@ var Ownable = artifacts.require("./Ownable.sol");
 //    with `git checkout HEAD -- migrations/2_deploy_contracts.js`)
 
 module.exports = function (deployer) {
-  deployer.deploy(Ownable);
+  //deployer.deploy(Ownable);
 };

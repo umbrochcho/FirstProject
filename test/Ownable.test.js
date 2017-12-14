@@ -5,7 +5,7 @@ var Ownable = artifacts.require('../contracts/Ownable.sol');
 
 const expect = require('chai').expect;
 
-contract('Ownable', function (accounts) {
+contract('Контракт с привилегированными пользователями', function (accounts) {
   let ownable;
   let creator = accounts[0];
 

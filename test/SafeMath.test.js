@@ -2,14 +2,14 @@ const assertRevert = require('./helpers/assertRevert');
 const assertJump = require('./helpers/assertJump');
 var SafeMathMock = artifacts.require('./mocks/SafeMathMock.sol');
 
-contract('SafeMath', function (accounts) {
+contract('Безопасные математические операции', function (accounts) {
   let safeMath;
 
   before(async function () {
     safeMath = await SafeMathMock.new();
   });
 
-  it('multiplies correctly', async function () {
+  it('умножение дает верный результат', async function () {
     let a = 5678;
     let b = 1234;
     await safeMath.multiply(a, b);
@@ -17,7 +17,7 @@ contract('SafeMath', function (accounts) {
     assert.equal(result, a * b);
   });
 
-  it('adds correctly', async function () {
+  it('сложение дает верный результат', async function () {
     let a = 5678;
     let b = 1234;
     await safeMath.add(a, b);
@@ -26,7 +26,7 @@ contract('SafeMath', function (accounts) {
     assert.equal(result, a + b);
   });
 
-  it('subtracts correctly', async function () {
+  it('вычитание дает верный результат', async function () {
     let a = 5678;
     let b = 1234;
     await safeMath.subtract(a, b);
@@ -35,7 +35,7 @@ contract('SafeMath', function (accounts) {
     assert.equal(result, a - b);
   });
 
-  it('should throw an error if subtraction result would be negative', async function () {
+  it('если результат вычитания отрицателен, то происходит ошибка и действие отменяется', async function () {
     let a = 1234;
     let b = 5678;
     try {
@@ -46,7 +46,7 @@ contract('SafeMath', function (accounts) {
     }
   });
 
-  it('should throw an error on addition overflow', async function () {
+  it('если результат сложения больше максимально допустимого значения, то происходит ошибка и действие отменяется', async function () {
     let a = 115792089237316195423570985008687907853269984665640564039457584007913129639935;
     let b = 1;
     try {
@@ -57,7 +57,7 @@ contract('SafeMath', function (accounts) {
     }
   });
 
-  it('should throw an error on multiplication overflow', async function () {
+  it('если результат умножения больше максимально допустимого значения, то происходит ошибка и действие отменяется', async function () {
     let a = 115792089237316195423570985008687907853269984665640564039457584007913129639933;
     let b = 2;
     try {

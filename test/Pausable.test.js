@@ -1,77 +1,102 @@
 
 const assertRevert = require('./helpers/assertRevert');
-const PausableMock = artifacts.require('mocks/PausableMock.sol');
+const PausableMock = artifacts.require('../contracts/mocks/PausableMock.sol');
 
-contract('Pausable', function (accounts) {
-  it('can perform normal process in non-pause', async function () {
-    let Pausable = await PausableMock.new();
-    let count0 = await Pausable.count();
-    assert.equal(count0, 0);
+const expect = require('chai').expect;
 
-    await Pausable.normalProcess();
-    let count1 = await Pausable.count();
-    assert.equal(count1, 1);
+contract('Конракт с возможностью прервать нормальное функционирование', function (accounts) {
+  let pausable;
+  let creator = accounts[0];
+  let other = accounts[1];
+  let stranger = accounts[2];
+
+  it('для проведения тестов необходимо минимум 3 адреса', async function () {
+    assert.isAtLeast(accounts.length, 3, 'без как минимум трех аккаунтов эти тесты невозможны');
   });
 
-  it('can not perform normal process in pause', async function () {
-    let Pausable = await PausableMock.new();
-    await Pausable.pause();
-    let count0 = await Pausable.count();
-    assert.equal(count0, 0);
+  before('создаем контракт единожды чтобы отслеживать состояние', async function () {
+    pausable = await PausableMock.new({ from: creator });
+  });
 
+  it('контракт, не поставленый на паузу, выполняет функции с модификатором whenNotPaused', async function () {
+    let count0 = await pausable.ownerCount();
+    await pausable.addOwner(other, { from: creator });
+    let count1 = await pausable.ownerCount();
+    assert.equal(count1 - count0, 1, 'количество владельцев должно увеличиться на 1');
+  });
+
+  it('контракт, не поставленый на паузу, не выполняет функции с модификатором whenPaused', async function () {
     try {
-      await Pausable.normalProcess();
-      assert.fail('should have thrown before');
+      await pausable.unpause({ from: creator });
+      assert.fail('мы никогда не должны этого видеть');
     } catch (error) {
       assertRevert(error);
     }
-    let count1 = await Pausable.count();
-    assert.equal(count1, 0);
   });
 
-  it('can not take drastic measure in non-pause', async function () {
-    let Pausable = await PausableMock.new();
+  it('невладелец не может поставить контракт на паузу', async function () {
     try {
-      await Pausable.drasticMeasure();
-      assert.fail('should have thrown before');
+      await pausable.pause({ from: stranger });
+      assert.fail('мы никогда не должны этого видеть');
     } catch (error) {
       assertRevert(error);
     }
-    const drasticMeasureTaken = await Pausable.drasticMeasureTaken();
-    assert.isFalse(drasticMeasureTaken);
   });
 
-  it('can take a drastic measure in a pause', async function () {
-    let Pausable = await PausableMock.new();
-    await Pausable.pause();
-    await Pausable.drasticMeasure();
-    let drasticMeasureTaken = await Pausable.drasticMeasureTaken();
-
-    assert.isTrue(drasticMeasureTaken);
+  it('владелец может поставить контракт на паузу', async function () {
+    let { logs } = await pausable.pause({ from: creator });
+    const paused = await pausable.paused();
+    assert.isTrue(paused, 'дложно быть истинно');
+    const event = logs.find(e => e.event === 'Pause' && e.args.who === creator);
+    expect(event, 'должно было произойти событие Pause').to.exist;
   });
 
-  it('should resume allowing normal process after pause is over', async function () {
-    let Pausable = await PausableMock.new();
-    await Pausable.pause();
-    await Pausable.unpause();
-    await Pausable.normalProcess();
-    let count0 = await Pausable.count();
-
-    assert.equal(count0, 1);
+  it('контракт, поставленый на паузу, выполняет функции с модификатором whenPaused', async function () {
+    let before = await pausable.drasticMeasureTaken();
+    await pausable.drasticMeasure();
+    let after = await pausable.drasticMeasureTaken();
+    assert.equal(after - before, 1, 'счетчик должен увеличиться на 1');
   });
 
-  it('should prevent drastic measure after pause is over', async function () {
-    let Pausable = await PausableMock.new();
-    await Pausable.pause();
-    await Pausable.unpause();
+  it('контракт, поставленый на паузу, не выполняет функции с модификатором whenNotPaused', async function () {
     try {
-      await Pausable.drasticMeasure();
-      assert.fail('should have thrown before');
+      await pausable.removeSelf({ from: creator });
+      assert.fail('мы никогда не должны этого видеть');
     } catch (error) {
       assertRevert(error);
     }
+  });
 
-    const drasticMeasureTaken = await Pausable.drasticMeasureTaken();
-    assert.isFalse(drasticMeasureTaken);
+  it('невладелец не может снять контракт с паузы', async function () {
+    try {
+      await pausable.unpause({ from: stranger });
+      assert.fail('мы никогда не должны этого видеть');
+    } catch (error) {
+      assertRevert(error);
+    }
+  });
+
+  it('владелец может снять контракт с паузы', async function () {
+    let { logs } = await pausable.unpause({ from: creator });
+    const paused = await pausable.paused();
+    assert.isFalse(paused, 'должно быть ложно');
+    const event = logs.find(e => e.event === 'Unpause' && e.args.who === creator);
+    expect(event, 'должно было произойти событие Unpause').to.exist;
+  });
+
+  it('контракт, снятый с паузы, снова выполняет функции с модификатором whenNotPaused', async function () {
+    let count0 = await pausable.ownerCount();
+    await pausable.removeSelf({ from: other });
+    let count1 = await pausable.ownerCount();
+    assert.equal(count0 - count1, 1, 'количество владельцев должно уменьшиться на 1');
+  });
+
+  it('контракт, снятый с паузы, снова не выполняет функции с модификатором whenPaused', async function () {
+    try {
+      await pausable.unpause({ from: creator });
+      assert.fail('мы никогда не должны этого видеть');
+    } catch (error) {
+      assertRevert(error);
+    }
   });
 });

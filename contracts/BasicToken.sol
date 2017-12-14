@@ -15,9 +15,10 @@ contract AltairVRToken is Pausable, ERC20Basic {
 
   mapping(address => uint256) balances;
 
+  uint256 public totalSupply = 0;
   enum TokenState {tokenSaling, tokenNormal}
   
-  TokenState tokenState = TokenState.tokenNormal;
+  TokenState public tokenState = TokenState.tokenNormal;
 
   uint constant MAXSUPPLY = 100000000 * 1 ether;
   uint constant MINSUPPLY = 10000000 * 1 ether;
@@ -45,8 +46,7 @@ contract AltairVRToken is Pausable, ERC20Basic {
 
   event Freezed(address indexed who, uint256 freezeEnd, uint256 amount);
   event UnFreezed(address indexed who, uint256 amount);
-  event TokenStateChanged(TokenState newState, uint256 when);
-
+  event TokenStateChanged(TokenState indexed newState, uint256 when);
 
   modifier whenTokenNormal() {
     require(tokenState == TokenState.tokenNormal);
@@ -65,27 +65,28 @@ contract AltairVRToken is Pausable, ERC20Basic {
   */
   function transfer(address _to, uint256 _value) public whenNotPaused whenTokenNormal returns (bool) {
     require(_to != address(0));
-    
-    uint256 realBalance = balances[msg.sender];
 
-    if (freezeCount > 0 && freezed[msg.sender]) {
-       uint sum = freezes[msg.sender].sum;
-      if (freezes[msg.sender].date < now) {
+    address _from = msg.sender;
+    
+    uint256 realBalance = balances[_from];
+
+    if (freezeCount > 0 && freezed[_from]) {
+      uint sum = freezes[_from].sum;
+      if (freezes[_from].date < now) {
         realBalance = realBalance.sub(sum);
       } else {
         freezeCount -= 1;
-        freezed[msg.sender] = false;
-        freezes[msg.sender].date = 0;
-        freezes[msg.sender].sum = 0;
-        UnFreezed(msg.sender, sum);
+        freezed[_from] = false;
+        freezes[_from].date = 0;
+        freezes[_from].sum = 0;
+        UnFreezed(_from, sum);
       }
     }
 
     require(_value <= realBalance);
-    // SafeMath.sub will throw if there is not enough balance.
-    balances[msg.sender] = balances[msg.sender].sub(_value);
+    balances[_from] = balances[_from].sub(_value);
     balances[_to] = balances[_to].add(_value);
-    Transfer(msg.sender, _to, _value);
+    Transfer(_from, _to, _value);
     return true;
   }
 
@@ -96,6 +97,11 @@ contract AltairVRToken is Pausable, ERC20Basic {
   */
   function balanceOf(address _owner) public view returns (uint256 balance) {
     return balances[_owner];
+  }
+
+  function setTokenState(TokenState _newState) internal {
+    tokenState = _newState;
+    TokenStateChanged(_newState, now);
   }
 
 }
