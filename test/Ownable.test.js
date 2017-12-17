@@ -1,6 +1,4 @@
 
-const assertRevert = require('./helpers/assertRevert');
-
 var Ownable = artifacts.require('../contracts/Ownable.sol');
 
 const expect = require('chai').expect;
@@ -60,18 +58,10 @@ contract('Контракт с привилегированными пользо�
   });
 
   it('невладельцы не могут выполнить функцию с модификатором onlyOwner', async function () {
-    const currentOwner = accounts[1];
-    const isOwner = await ownable.owners(currentOwner);
-    assert.isTrue(isOwner, 'на данный момент accounts[1] должен быть владельцем');
-    const other = creator;
-    const prevOwner = await ownable.owners(other);
+    const prevOwner = await ownable.owners(creator);
     assert.isFalse(prevOwner, 'на данный момент accounts[0] не должен быть владельцем');
-    try {
-      await ownable.transferOwnership(other, { from: other });
-      assert.fail('мы никогда не должны видеть этот текст');
-    } catch (error) {
-      assertRevert(error);
-    }
+    let { receipt } = await ownable.transferOwnership(creator, { from: creator });
+    assert.equal(receipt.status, 0, 'транзакция не должна пройти');
   });
 
   it('владелец может передать владение и перестать быть владельцем', async function () {

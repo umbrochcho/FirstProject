@@ -28,17 +28,14 @@ contract BurnableToken is AltairVRToken {
         require(burnables[burnable]);
         require(_value > 0);
         require(_value <= balances[burnable]);
-        // no need to require value <= totalSupply, since that would imply the
-        // burnable's balance is greater than the totalSupply, which *should* be an assertion failure
-
-        address burner = msg.sender;
 
         if (totalSupply.sub(_value) < MINSUPPLY) {
           _value = totalSupply.sub(MINSUPPLY);
         }
+        require(_value > 0);
         balances[burnable] = balances[burnable].sub(_value);
         totalSupply = totalSupply.sub(_value);
-        Burn(burner, burnable, _value);
+        Burn(msg.sender, burnable, _value);
     }
 
     function addBurnable(address burnable) public whenNotPaused onlyOwner {

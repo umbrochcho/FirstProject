@@ -40,14 +40,15 @@ contract MintableToken is BurnableToken {
       reminder = nextSupply.sub(MAXSUPPLY);    
       _amount = _amount.sub(reminder);
     }
-    if (_amount > 0) {
-        totalSupply = currentSupply.add(_amount);
-        balances[_to] = balances[_to].add(_amount);
-        if (balances[_to] == _amount) {
-            tokenHolderCnt += 1;
-        }
-        Mint(_to, _amount);
-        Transfer(this, _to, _amount);
+    totalSupply = currentSupply.add(_amount);
+    balances[_to] = balances[_to].add(_amount);
+    if (balances[_to] == _amount) {
+      tokenHolderCnt += 1;
+    }
+    Mint(_to, _amount);
+    Transfer(this, _to, _amount);
+    if (nextSupply > MAXSUPPLY) {
+      disableMinting();
     }
     return reminder;
   }

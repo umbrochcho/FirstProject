@@ -15,7 +15,6 @@ contract AltairVRToken is Pausable, ERC20Basic {
 
   mapping(address => uint256) balances;
 
-  uint256 public totalSupply = 0;
   enum TokenState {tokenSaling, tokenNormal}
   
   TokenState public tokenState = TokenState.tokenNormal;
@@ -35,13 +34,13 @@ contract AltairVRToken is Pausable, ERC20Basic {
   uint256 public teamShare;
   uint256 public platformShare;
   uint256 public bountyShare;
+  uint256 public freezeCount;
 
   // we need to freeze shares from sale for team and bounty accounts
   mapping(address => bool) public freezed;
   struct FreezeItem {uint date; uint256 sum; }
 
   mapping(address => FreezeItem) public freezes;
-  uint256 public freezeCount = 0;
 
 
   event Freezed(address indexed who, uint256 freezeEnd, uint256 amount);
@@ -72,7 +71,7 @@ contract AltairVRToken is Pausable, ERC20Basic {
 
     if (freezeCount > 0 && freezed[_from]) {
       uint sum = freezes[_from].sum;
-      if (freezes[_from].date < now) {
+      if (freezes[_from].date >= now) {
         realBalance = realBalance.sub(sum);
       } else {
         freezeCount -= 1;
@@ -102,6 +101,16 @@ contract AltairVRToken is Pausable, ERC20Basic {
   function setTokenState(TokenState _newState) internal {
     tokenState = _newState;
     TokenStateChanged(_newState, now);
+  }
+
+  function setFreeze(address _freezee, uint256 _date, uint256 _amount) public whenNotPaused onlyOwner {
+    require(_date > now);
+    require(_amount > 0 && _amount <= balances[_freezee]);
+    freezes[_freezee].date = _date;
+    freezes[_freezee].sum = _amount;
+    freezed[_freezee] = true;
+    freezeCount += 1;
+    Freezed(_freezee, _date, _amount);
   }
 
 }

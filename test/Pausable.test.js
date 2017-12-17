@@ -1,5 +1,4 @@
 
-const assertRevert = require('./helpers/assertRevert');
 const PausableMock = artifacts.require('../contracts/mocks/PausableMock.sol');
 
 const expect = require('chai').expect;
@@ -19,28 +18,20 @@ contract('Конракт с возможностью прервать норма
   });
 
   it('контракт, не поставленый на паузу, выполняет функции с модификатором whenNotPaused', async function () {
-    let count0 = await pausable.ownerCount();
+    let count0 = await pausable.ownerCount.call();
     await pausable.addOwner(other, { from: creator });
-    let count1 = await pausable.ownerCount();
+    let count1 = await pausable.ownerCount.call();
     assert.equal(count1 - count0, 1, 'количество владельцев должно увеличиться на 1');
   });
 
   it('контракт, не поставленый на паузу, не выполняет функции с модификатором whenPaused', async function () {
-    try {
-      await pausable.unpause({ from: creator });
-      assert.fail('мы никогда не должны этого видеть');
-    } catch (error) {
-      assertRevert(error);
-    }
+    let { receipt } = await pausable.unpause({ from: creator });
+    assert.equal(receipt.status, 0, 'транзакция не должна пройти');
   });
 
   it('невладелец не может поставить контракт на паузу', async function () {
-    try {
-      await pausable.pause({ from: stranger });
-      assert.fail('мы никогда не должны этого видеть');
-    } catch (error) {
-      assertRevert(error);
-    }
+    let { receipt } = await pausable.pause({ from: stranger });
+    assert.equal(receipt.status, 0, 'транзакция не должна пройти');
   });
 
   it('владелец может поставить контракт на паузу', async function () {
@@ -59,21 +50,13 @@ contract('Конракт с возможностью прервать норма
   });
 
   it('контракт, поставленый на паузу, не выполняет функции с модификатором whenNotPaused', async function () {
-    try {
-      await pausable.removeSelf({ from: creator });
-      assert.fail('мы никогда не должны этого видеть');
-    } catch (error) {
-      assertRevert(error);
-    }
+    let { receipt } = await pausable.removeSelf({ from: creator });
+    assert.equal(receipt.status, 0, 'транзакция не должна пройти');
   });
 
   it('невладелец не может снять контракт с паузы', async function () {
-    try {
-      await pausable.unpause({ from: stranger });
-      assert.fail('мы никогда не должны этого видеть');
-    } catch (error) {
-      assertRevert(error);
-    }
+    let { receipt } = await pausable.unpause({ from: stranger });
+    assert.equal(receipt.status, 0, 'транзакция не должна пройти');
   });
 
   it('владелец может снять контракт с паузы', async function () {
@@ -92,11 +75,7 @@ contract('Конракт с возможностью прервать норма
   });
 
   it('контракт, снятый с паузы, снова не выполняет функции с модификатором whenPaused', async function () {
-    try {
-      await pausable.unpause({ from: creator });
-      assert.fail('мы никогда не должны этого видеть');
-    } catch (error) {
-      assertRevert(error);
-    }
+    let { receipt } = await pausable.unpause({ from: creator });
+    assert.equal(receipt.status, 0, 'транзакция не должна пройти');
   });
 });

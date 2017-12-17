@@ -7,21 +7,25 @@ import '../BasicToken.sol';
 // mock class using AltairVRToken
 contract BasicTokenMock is AltairVRToken {
 
-  function BasicTokenMock(address initialAccount, uint256 initialBalance) public {
+  function BasicTokenMock(address initialAccount, uint256 initialBalance) public AltairVRToken() {
     balances[initialAccount] = initialBalance;
     totalSupply = initialBalance;
     tokenState = TokenState.tokenSaling;
-
-    FreezeItem memory item;
-    item.date = now + 3600;
-    item.sum = initialBalance/2;
-
-    freezeCount = 1;
-    freezed[initialAccount] = true;
-    freezes[initialAccount] = item;
   }
 
   function doSetTokenState(TokenState _newState) public {
     super.setTokenState(_newState);
+  }
+
+  function getNow() public view returns (uint256) {
+    return now;
+  }
+
+  function getMinSupply() public pure returns (uint256) {
+    return MINSUPPLY/1 ether;
+  }
+
+  function getMaxSupply() public pure returns (uint256) {
+    return MAXSUPPLY/1 ether;
   }
 }

@@ -1,31 +1,55 @@
+import { increaseTimeTo } from './helpers/increaseTime';
 
-const assertRevert = require('./helpers/assertRevert');
+const expect = require('chai').expect;
+const toWei = require('./helpers/wei').default;
+const toEther = require('./helpers/ether').default;
 
 var StandardTokenMock = artifacts.require('./mocks/StandardTokenMock.sol');
 
-contract('StandardToken', function (accounts) {
+contract('полный токен ERC20', function (accounts) {
   let token;
+  let other = accounts[1];
+  let stranger = accounts[2];
+  let freezeStart;
+  let freezeDuration = 3600;
 
-  beforeEach(async function () {
-    token = await StandardTokenMock.new(accounts[0], 100);
+  before(async function () {
+    token = await StandardTokenMock.new(other, 100);
   });
 
-  it('should return the correct totalSupply after construction', async function () {
+  it('возвращает правильное количество токенов после создания', async function () {
     let totalSupply = await token.totalSupply();
-
+    totalSupply = toEther(totalSupply);
     assert.equal(totalSupply, 100);
   });
 
+  it('замораживаем 50 токенов одного из счетов на один час', async function () {
+    freezeStart =  await token.getNow();
+    console.log('\tзаморозка начинатеся в ' + freezeStart);
+    
+    let _date = freezeStart + freezeDuration;
+    console.log('\tзаморозка закончится в ' + _date);
+    await token.setFreeze(other, _date, 50, { from: creator });
+//    assert.equal(receipt.status, 1, 'транзакция должна пройти');
+//    console.log(res);
+    console.log('\tна счету ' + other.toString() + ' на один час заморожено 50 токенов');
+    let fc = await token.freezeCount();
+    assert.equal(fc, 1, 'must be 1');
+    let freezed = await token.freezed(other);
+    assert.isTrue(freezed, 'must be true');
+    let [ date, sum ] = await token.freezes(other);
+    assert.equal(sum, toWei(50), 'must be 50');
+    assert.equal(date, _date, 'must be ' + _date);
+  });
+
   it('should return the correct allowance amount after approval', async function () {
-    let token = await StandardTokenMock.new();
-    await token.approve(accounts[1], 100);
-    let allowance = await token.allowance(accounts[0], accounts[1]);
+    await token.approve(stranger, 100, { from: other });
+    let allowance = await token.allowance(other, stranger);
 
     assert.equal(allowance, 100);
   });
 
   it('should return correct balances after transfer', async function () {
-    let token = await StandardTokenMock.new(accounts[0], 100);
     await token.transfer(accounts[1], 100);
     let balance0 = await token.balanceOf(accounts[0]);
     assert.equal(balance0, 0);

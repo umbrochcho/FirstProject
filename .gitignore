@@ -34,5 +34,8 @@ npm-debug.log
 # truffle build directory
 build/
 
+#blochain directory
+chains/
+
 # lol macs
 .DS_Store/

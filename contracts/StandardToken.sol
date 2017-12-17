@@ -31,7 +31,7 @@ contract StandardToken is ERC20, MintableToken {
 
     if (freezeCount > 0 && freezed[msg.sender]) {
        uint sum = freezes[msg.sender].sum;
-      if (freezes[msg.sender].date < now) {
+      if (freezes[msg.sender].date >= now) {
         realBalance = realBalance.sub(sum);
       } else {
         freezeCount -= 1;
