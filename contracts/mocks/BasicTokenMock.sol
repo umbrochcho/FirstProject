@@ -28,4 +28,8 @@ contract BasicTokenMock is AltairVRToken {
   function getMaxSupply() public pure returns (uint256) {
     return MAXSUPPLY/1 ether;
   }
+
+  function doSetFreeze(address _freezee, uint256 _date, uint256 _amount) public {
+  	setFreeze(_freezee, _date, _amount);
+  }
 }

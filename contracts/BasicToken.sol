@@ -74,11 +74,7 @@ contract AltairVRToken is Pausable, ERC20Basic {
       if (freezes[_from].date >= now) {
         realBalance = realBalance.sub(sum);
       } else {
-        freezeCount -= 1;
-        freezed[_from] = false;
-        freezes[_from].date = 0;
-        freezes[_from].sum = 0;
-        UnFreezed(_from, sum);
+        unFreeze(_from);
       }
     }
 
@@ -103,14 +99,31 @@ contract AltairVRToken is Pausable, ERC20Basic {
     TokenStateChanged(_newState, now);
   }
 
-  function setFreeze(address _freezee, uint256 _date, uint256 _amount) public whenNotPaused onlyOwner {
-    require(_date > now);
-    require(_amount > 0 && _amount <= balances[_freezee]);
-    freezes[_freezee].date = _date;
-    freezes[_freezee].sum = _amount;
-    freezed[_freezee] = true;
-    freezeCount += 1;
-    Freezed(_freezee, _date, _amount);
+  function setFreeze(address _freezee, uint256 _date, uint256 _amount) internal {
+    if (_date > now) {
+	    freezes[_freezee].date = _date;
+    	freezes[_freezee].sum = _amount;
+    	if (freezed[_freezee] == false) {
+	    	freezed[_freezee] = true;
+    		freezeCount += 1;
+    	}
+    	Freezed(_freezee, _date, _amount);
+    }
+  }
+
+  function unFreeze(address _freezee) internal {
+  	require(freezes[_freezee].date < now);
+	
+	uint256 sum = freezes[_freezee].sum;
+	
+    freezes[_freezee].date = 0;
+    freezes[_freezee].sum = 0;
+    
+   	freezed[_freezee] = false;
+   	
+    freezeCount -= 1;
+    
+   	UnFreezed(_freezee, sum);
   }
 
 }

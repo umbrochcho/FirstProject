@@ -19,8 +19,8 @@ contract AltairVR is StandardToken {
 
   SaleState saleState = SaleState.closedPresale;
   
-  // address where funds are collected MUST BE SET BEFORE DEPLOY!!!!!!!!!
-  address public wallet = 0;
+  // address where funds are collected 
+  address public wallet;
 
   uint256 constant TOKENSTOSALE = 50000000 * 1 ether;
   // how many token units a buyer gets per wei
@@ -35,17 +35,20 @@ contract AltairVR is StandardToken {
   uint256 constant bountySharePercents = 3;
 
  // sale state properties
+ 	uint256 startClosedPresale;
     uint256 constant endClosedPresale = 1515974399; //14.01.2018 23:59:59 GMT
     uint256 constant hardClosedPresale = 700 * 1 ether;
     uint256 constant minWeiDepositClosedPresale = 40 * 1 ether;
 
     uint256 constant startPublicPresale = 1515974400; //15.01.2018 0:00:00 GMT
-    uint256 constant endPublicPresale = 1517270399;   //29.01.2018 23:59:59 GMT
+    uint256 constant durationPublicPresale = 15 days;
+    uint256 constant endPublicPresale = startPublicPresale + durationPublicPresale - 1;   //29.01.2018 23:59:59 GMT
     uint256 constant hardPublicPresale = 5000 * 1 ether;
     uint256 constant minWeiDepositPublicPresale = 50 * 1 finney;
 
     uint256 constant startCrowdsale = 1520812800; //12.03.2018 0:00:00 GMT
-    uint256 constant endCrowdsale = 1524700799;   //25.04.2018 23:59:59 GMT
+    uint256 constant durationCrowdsale = 45 days;
+    uint256 constant endCrowdsale = startCrowdsale + durationCrowdsale - 1;   //25.04.2018 23:59:59 GMT
     uint256 constant minWeiDepositCrowdsale = 50 * 1 finney;
 
   // bonuses 
@@ -78,7 +81,7 @@ contract AltairVR is StandardToken {
 
   uint256 public saleEndTime = endCrowdsale;
 
-  //share freez duration for team and bounty. 
+  //share freezes duration for team and bounty. 
   //starts from `saleEndTime`
 
   uint256 constant teamShareFreezeDuration = 365 days;
@@ -124,16 +127,18 @@ contract AltairVR is StandardToken {
   event TokenPurchase(address indexed beneficiary, uint256 value, uint256 amount);
 
 
-  function AltairVR() public {
+  function AltairVR(address _wallet, address _team, address _bounty, address _platform) public {
+    require(wallet != 0);
+    require(teamAddress != 0);
+    require(bountyAddress != 0);
     
+    
+    wallet = _wallet;
     // adding to owner funding wallet
     addOwner(wallet);
     
-    freezeCount = 2;
-    FreezeItem memory freez;
-
     //special addresses 
-    teamAddress = 0; //MUST BE SET BEFORE DEPLOY!!!!!!!!!
+    teamAddress = _team; 
 
     // add team address to owners
     addOwner(teamAddress);
@@ -141,20 +146,14 @@ contract AltairVR is StandardToken {
     addBurnable(teamAddress);
     
     //init freeze record for team
-    freez.date = saleEndTime.add(teamShareFreezeDuration) - 1;
-    freezed[teamAddress] = true;
-    freezes[teamAddress] = freez;
+    setFreeze(teamAddress, saleEndTime.add(teamShareFreezeDuration) - 1, 0);
 
-    bountyAddress = 0; //MUST BE SET BEFORE DEPLOY!!!!!!!!!
-    
-    require(bountyAddress != 0);
+    bountyAddress = _bounty; 
     
     //init freeze record for bounty
-    freez.date = saleEndTime.add(bountyShareFreezeDuration) - 1;
-    freezed[bountyAddress] = true;
-    freezes[bountyAddress] = freez;
+    setFreeze(bountyAddress, saleEndTime.add(bountyShareFreezeDuration) - 1, 0);
 
-    platformAddress = 0; //MUST BE SET BEFORE DEPLOY!!!!!!!!!
+    platformAddress = _platform; 
     
     if (platformAddress != 0) {
         addOwner(platformAddress);
@@ -164,6 +163,7 @@ contract AltairVR is StandardToken {
     tokenState = TokenState.tokenSaling;
     TokenStateChanged(tokenState, now);
     enableMinting();
+    startClosedPresale = now;
     SaleStateStarted(SaleState.closedPresale, now);
   }
 
@@ -387,8 +387,7 @@ contract AltairVR is StandardToken {
 
     mint(teamAddress, _share);
     teamShare = _share;
-    freezes[teamAddress].sum = _share;
-    freezes[teamAddress].date = saleEndTime.add(teamShareFreezeDuration) - 1;
+    setFreeze(teamAddress, saleEndTime.add(teamShareFreezeDuration) - 1, _share);
 
     _share = (_totalSupply.mul(platformSharePercents)).div(100);
 
@@ -403,8 +402,7 @@ contract AltairVR is StandardToken {
 
     mint(bountyAddress, _share);
     bountyShare = _share;
-    freezes[bountyAddress].sum = _share;
-    freezes[bountyAddress].date = saleEndTime.add(bountyShareFreezeDuration) - 1;
+    setFreeze(bountyAddress, saleEndTime.add(bountyShareFreezeDuration) - 1, _share);
 
     disableMinting();
     tokenState = TokenState.tokenNormal;

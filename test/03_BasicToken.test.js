@@ -50,9 +50,9 @@ contract('Основной контракт токена AltairVR Token', functi
     freezeStart =  await token.getNow();
     console.log('\tзаморозка начинатеся в ' + freezeStart);
     
-    let _date = freezeStart + freezeDuration;
+    let _date = freezeStart.plus(freezeDuration);
     console.log('\tзаморозка закончится в ' + _date);
-    await token.setFreeze(other, _date, 50, { from: creator });
+    await token.doSetFreeze(other, _date, 50, { from: creator });
 //    assert.equal(receipt.status, 1, 'транзакция должна пройти');
 //    console.log(res);
     console.log('\tна счету ' + other.toString() + ' на один час заморожено 50 токенов');
@@ -62,7 +62,7 @@ contract('Основной контракт токена AltairVR Token', functi
     assert.isTrue(freezed, 'must be true');
     let [ date, sum ] = await token.freezes(other);
     assert.equal(sum, 50, 'must be 50');
-    assert.equal(date, _date, 'must be ' + _date);
+    assert.isTrue(date.equals(_date), 'must be ' + _date);
   });
 
   it('в состоянии продажи токен не позволяет обмен между владельцами', async function () {
@@ -130,14 +130,13 @@ contract('Основной контракт токена AltairVR Token', functi
   });
 
   it('сдвигаем время на 1 час вперед', async function () {
-    await increaseTimeTo(freezeStart + freezeDuration);
+    await increaseTimeTo(freezeStart.plus(freezeDuration));
     console.log('###');
     let now = await token.getNow();
-    assert.isAbove(now, freezeStart + freezeDuration);
+    assert.isAbove(now, freezeStart.plus(freezeDuration));
   });
 
   it('если срок заморозки истек, то владелец распоряжаться всей суммой на счету', async function () {
-    //    console.log('\tувеличиваем время на час')
     let now = await token.getNow();
     let [ date, sum ] = await token.freezes(other);
     assert.isAbove(now, date, 'must be greater');
@@ -152,22 +151,4 @@ contract('Основной контракт токена AltairVR Token', functi
     let freezeCount = await token.freezeCount();
     assert.equal(freezeCount, 0, 'must be 0');
   });
-/*  it('should throw an error when trying to transfer more than balance', async function () {
-    try {
-      await token.transfer(accounts[1], 101);
-      assert.fail('should have thrown before');
-    } catch (error) {
-      assertRevert(error);
-    }
-  });
-
-  it('should throw an error when trying to transfer to 0x0', async function () {
-    try {
-      await token.transfer(0x0, 100);
-      assert.fail('should have thrown before');
-    } catch (error) {
-      assertRevert(error);
-    }
-  });
-  */
 });

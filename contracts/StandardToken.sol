@@ -27,18 +27,14 @@ contract StandardToken is ERC20, MintableToken {
   function transferFrom(address _from, address _to, uint256 _value) public whenNotPaused whenTokenNormal returns (bool) {
     require(_to != address(0));
   
-    uint256 realBalance = balances[msg.sender];
+    uint256 realBalance = balances[_from];
 
-    if (freezeCount > 0 && freezed[msg.sender]) {
-       uint sum = freezes[msg.sender].sum;
-      if (freezes[msg.sender].date >= now) {
+    if (freezeCount > 0 && freezed[_from]) {
+      uint sum = freezes[_from].sum;
+      if (freezes[_from].date >= now) {
         realBalance = realBalance.sub(sum);
       } else {
-        freezeCount -= 1;
-        freezed[msg.sender] = false;
-        freezes[msg.sender].date = 0;
-        freezes[msg.sender].sum = 0;
-        UnFreezed(msg.sender, sum);
+        unFreeze(_from);
       }
     }
 

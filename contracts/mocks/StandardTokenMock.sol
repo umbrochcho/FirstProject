@@ -16,4 +16,7 @@ contract StandardTokenMock is StandardToken {
     return now;
   }
 
+  function doSetFreeze(address _freezee, uint256 _date, uint256 _amount) public {
+  	setFreeze(_freezee, _date, _amount);
+  }
 }

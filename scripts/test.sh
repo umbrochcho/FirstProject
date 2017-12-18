@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
 # Exit script as soon as a command fails.
 set -o errexit
@@ -13,11 +13,12 @@ cleanup() {
   fi
 }
 
-if [ "$SOLIDITY_COVERAGE" = true ]; then
-  testrpc_port=8555
-else
-  testrpc_port=8545
-fi
+testrpc_port=8545
+blocktime=2
+db=$(dirname $0);
+db=$(cd $db/.. && pwd)/chains/ganache
+hostname=localhost
+
 
 testrpc_running() {
   nc -z localhost "$testrpc_port"
@@ -38,11 +39,8 @@ start_testrpc() {
     --account="0x2bdd21761a483f71054e14f5b827213567971c676928d9a1808cbfa4b7501209,1000000000000000000000000"
   )
 
-  if [ "$SOLIDITY_COVERAGE" = true ]; then
-    node_modules/.bin/testrpc-sc --gasLimit 0xfffffffffff --port "$testrpc_port" "${accounts[@]}" > /dev/null &
-  else
-    node_modules/.bin/testrpc --gasLimit 0xfffffffffff "${accounts[@]}" > /dev/null &
-  fi
+  mkdir -p $db #&& rm $db/*
+  node_modules/.bin/ganache-cli --gasLimit 0xfffffffffff "${accounts[@]}" --blocktime $blocktime --hostname $hostname --db "$db" #> /dev/null &
 
   testrpc_pid=$!
 }
@@ -54,12 +52,5 @@ else
   start_testrpc
 fi
 
-if [ "$SOLIDITY_COVERAGE" = true ]; then
-  node_modules/.bin/solidity-coverage
+#  node_modules/.bin/truffle --network development test "$@"
 
-  if [ "$CONTINUOUS_INTEGRATION" = true ]; then
-    cat coverage/lcov.info | node_modules/.bin/coveralls
-  fi
-else
-  node_modules/.bin/truffle test "$@"
-fi

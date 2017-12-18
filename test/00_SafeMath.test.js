@@ -38,33 +38,21 @@ contract('Безопасные математические операции', f
   it('если результат вычитания отрицателен, то происходит ошибка и действие отменяется', async function () {
     let a = 1234;
     let b = 5678;
-    try {
-      await safeMath.subtract(a, b);
-      assert.fail('should have thrown before');
-    } catch (error) {
-      assertJump(error);
-    }
+    let { receipt } = await safeMath.subtract(a, b);
+    assert.equal(receipt.status, 0, 'транзакция не должна пройти');
   });
 
   it('если результат сложения больше максимально допустимого значения, то происходит ошибка и действие отменяется', async function () {
     let a = 115792089237316195423570985008687907853269984665640564039457584007913129639935;
     let b = 1;
-    try {
-      await safeMath.add(a, b);
-      assert.fail('should have thrown before');
-    } catch (error) {
-      assertRevert(error);
-    }
+    let { receipt } = await safeMath.add(a, b);
+    assert.equal(receipt.status, 0, 'транзакция не должна пройти');
   });
 
   it('если результат умножения больше максимально допустимого значения, то происходит ошибка и действие отменяется', async function () {
     let a = 115792089237316195423570985008687907853269984665640564039457584007913129639933;
     let b = 2;
-    try {
-      await safeMath.multiply(a, b);
-      assert.fail('should have thrown before');
-    } catch (error) {
-      assertRevert(error);
-    }
+    let { receipt } = await safeMath.multiply(a, b);
+    assert.equal(receipt.status, 0, 'транзакция не должна пройти');
   });
 });
