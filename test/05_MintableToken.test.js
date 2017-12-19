@@ -1,4 +1,3 @@
-
 const MintableTokenMock = artifacts.require('../contracts/mocks/MintableTokenMock.sol');
 
 const expect = require('chai').expect;

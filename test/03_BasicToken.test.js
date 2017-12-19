@@ -26,9 +26,9 @@ contract('Основной контракт токена AltairVR Token', functi
     assert.equal(name, 'AltairVR token', 'must be "AltairVR token"');
   });
 
-  it('токен обозначается AVR', async function () {
+  it('токен обозначается ALT', async function () {
     let symbol = await token.symbol();
-    assert.equal(symbol, 'AVR', 'must be "AVR"');
+    assert.equal(symbol, 'ALT', 'must be "ALT"');
   });
 
   it('токен может иметь до 18 знаков после запятой AVR', async function () {

@@ -17,7 +17,7 @@ contract AltairVR is StandardToken {
 
   enum SaleState {closedPresale, closedPresaleEnded, publicPresale, publicPresaleEnded, crowdSale, Finalized}
 
-  SaleState saleState = SaleState.closedPresale;
+  SaleState public saleState = SaleState.closedPresale;
   
   // address where funds are collected 
   address public wallet;
@@ -35,7 +35,6 @@ contract AltairVR is StandardToken {
   uint256 constant bountySharePercents = 3;
 
  // sale state properties
- 	uint256 startClosedPresale;
     uint256 constant endClosedPresale = 1515974399; //14.01.2018 23:59:59 GMT
     uint256 constant hardClosedPresale = 700 * 1 ether;
     uint256 constant minWeiDepositClosedPresale = 40 * 1 ether;
@@ -128,9 +127,9 @@ contract AltairVR is StandardToken {
 
 
   function AltairVR(address _wallet, address _team, address _bounty, address _platform) public {
-    require(wallet != 0);
-    require(teamAddress != 0);
-    require(bountyAddress != 0);
+    require(_wallet != 0);
+    require(_team != 0);
+    require(_bounty != 0);
     
     
     wallet = _wallet;
@@ -163,7 +162,6 @@ contract AltairVR is StandardToken {
     tokenState = TokenState.tokenSaling;
     TokenStateChanged(tokenState, now);
     enableMinting();
-    startClosedPresale = now;
     SaleStateStarted(SaleState.closedPresale, now);
   }
 

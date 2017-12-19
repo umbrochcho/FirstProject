@@ -22,7 +22,7 @@ contract AltairVRToken is Pausable, ERC20Basic {
   uint constant MAXSUPPLY = 100000000 * 1 ether;
   uint constant MINSUPPLY = 10000000 * 1 ether;
   string public name = "AltairVR token";
-  string public symbol = "AVR";
+  string public symbol = "ALT";
   uint8 public decimals = 18;
   string public version = "0.1";
 

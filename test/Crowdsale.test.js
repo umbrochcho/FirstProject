@@ -1,8 +1,11 @@
-import ether from './helpers/ether';
 import { advanceBlock } from './helpers/advanceToBlock';
 import { increaseTimeTo, duration } from './helpers/increaseTime';
 import latestTime from './helpers/latestTime';
-import EVMRevert from './helpers/EVMRevert';
+
+const toWei = require('./helpers/wei').default;
+const toEther = require('./helpers/ether').default;
+
+const expect = require('chai').expect;
 
 const BigNumber = web3.BigNumber;
 
@@ -11,36 +14,229 @@ const should = require('chai')
   .use(require('chai-bignumber')(BigNumber))
   .should();
 
-const Crowdsale = artifacts.require('Crowdsale');
-const MintableToken = artifacts.require('MintableToken');
+const CrowdsaleMock = artifacts.require('../contracts/mocks/CrowdsaleMock');
 
-contract('Crowdsale', function ([_, investor, wallet, purchaser]) {
-  const rate = new BigNumber(1000);
-  const value = ether(42);
-
-  const expectedTokenAmount = rate.mul(value);
+contract('Продажа токенов', function (accounts) {
+	
+  let token;
+  const TokenState = { tokenSaling: 0, tokenNormal: 1 };
+  
+  const SaleState = {closedPresale: {value: 0,
+	  								 start: Date.now(),
+	  								 end: new Date(Date.UTC(2018, 1, 14, 23, 59, 59)),
+	  								 minDeposit: toWei(40),
+	  								 hardCap: toWei(700)
+	  								}, 
+		  			 closedPresaleEnded: {value: 1}, 
+		  			 publicPresale: {value: 2,
+		  				 			 start: new Date(Date.UTC(2018, 0, 15, 0, 0, 0)),
+		  				 			 end: new Date(Date.UTC(2018, 0, 29, 23, 59, 59)),
+		  				 			 durationDays: 15,
+		  				 			 minDeposit: toWei(0.05),
+		  				 			 hardCap: toWei(5000)
+		  				 			}, 
+		  			 publicPresaleEnded: {value: 3,
+		  				 				  start: new Date(Date.UTC(2018, 0, 30, 0, 0, 0)),
+		  				 				  end: new Date(Date.UTC(2018, 2, 11, 23, 59, 59)),
+ 			  				 			  durationDays: 41
+		  				 				 }, 
+		  			 crowdSale: {value: 4,
+		  				 		 start: new Date(Date.UTC(2018, 2, 12, 0, 0, 0)),
+		  				 		 end: new Date(Date.UTC(2018, 3, 25, 23, 59, 59)),
+		  				 		 durationDays: 45,
+		  				 		 minDeposit: toWei(0.05),
+		  				 		 hardCap: toWei(125000)
+		  				 		}, 
+		  			 Finalized: {value: 5,
+		  				 		 start: new Date(Date.UTC(2018, 3, 26, 0, 0, 0))
+		  				 		}
+		  			};
+  
+  const tokensToSale = 50000000;
+  const wallet = accounts[1];
+  const team = accounts[2];
+  const bounty = accounts[3];
+  const platform = accounts[4];
+  const investor = accounts[5];
+  
+  const rate = new BigNumber(400);
+  
+  let glogs;
+  let gminted = new BigNumber(0);
+  let glastMinted = new BigNumber(0);
+  let gtotalSupply = new BigNumber(0);
 
   before(async function () {
     // Advance to the next block to correctly read time in the solidity "now" function interpreted by testrpc
     await advanceBlock();
+    token = await CrowdsaleMock.new(wallet, team, bounty, platform);
   });
 
-  beforeEach(async function () {
-    this.startTime = latestTime() + duration.weeks(1);
-    this.endTime = this.startTime + duration.weeks(1);
-    this.afterEndTime = this.endTime + duration.seconds(1);
 
-    this.crowdsale = await Crowdsale.new(this.startTime, this.endTime, rate, wallet);
-
-    this.token = MintableToken.at(await this.crowdsale.token());
+  it('токен создается в состоянии продажи', async function () {
+	const state = await token.tokenState();
+	assert.equal(state, TokenState.tokenSaling, 'must be 0');
   });
 
-  it('should be token owner', async function () {
-    const owner = await this.token.owner();
-    owner.should.equal(this.crowdsale.address);
+  it('общее количество токенов для продажи равно ' + tokensToSale, async function () {
+	const _toSale = await token.getTokensToSale();
+	assert.equal(toEther(_toSale), tokensToSale, 'must be 50 000 000');
   });
 
-  it('should be ended only after end', async function () {
+  it('общее количество токенов равно 0', async function () {
+	const supply = await token.totalSupply();
+	assert.equal(supply, 0, 'must be 0');
+  });
+
+  it('количество собранного эфира равно 0', async function () {
+	const raised = await token.weiRaised();
+	assert.equal(raised, 0, 'must be 0');
+  });
+
+  it('адрес кошелька для собранных средств не равен 0', async function () {
+	const _team = await token.wallet();
+	assert.notEqual(_team, 0, 'must be above 0');
+  });
+
+  it('адрес команды не равен 0', async function () {
+	const _team = await token.teamAddress();
+	assert.notEqual(_team, 0, 'must be above 0');
+  });
+
+  it('баланс команды равен 0', async function () {
+	const _balance = await token.balanceOf(team);
+	assert.isTrue(_balance.equals(0), 'must be 0');
+  });
+
+  it('заморозка счета команды инициализирована', async function () {
+	const _freeze = await token.freezed(team);
+	assert.isTrue(_freeze, 'must be true');
+  });
+
+  it('адрес баунти не равен 0', async function () {
+	const _team = await token.bountyAddress();
+	assert.notEqual(_team, 0, 'must be above 0');
+  });
+
+  it('баланс баунти равен 0', async function () {
+	const _balance = await token.balanceOf(bounty);
+	assert.isTrue(_balance.equals(0), 'must be 0');
+  });
+
+  it('заморозка счета баунти инициализирована', async function () {
+	const _freeze = await token.freezed(bounty);
+	assert.isTrue(_freeze, 'must be true');
+  });
+
+  it('адрес платформы не равен 0', async function () {
+	const _team = await token.platformAddress();
+	assert.notEqual(_team, 0, 'must be above 0');
+  });
+
+  it('баланс платформы равен 0', async function () {
+	const _balance = await token.balanceOf(platform);
+	assert.isTrue(_balance.equals(0), 'must be 0');
+  });
+
+  it('за каждый эфир инвестор получит 400 токенов без учета бонусов', async function () {
+	const _rate = await token.rate();
+	assert.isTrue(_rate.equals(rate), 'must be 400');
+  });
+  
+  it('на любой стадии продажи инвестор, внесший сумму свыше 2000 эфиров, получит за каждый эфир 20 бонусных токенов', async function () {
+	const _rate = await token.getAmountBonus(toWei(2000));
+	assert.isTrue(_rate.equals(20), 'must be 20');
+  });
+	  
+  it('на любой стадии продажи инвестор, внесший сумму свыше 5000 эфиров, получит за каждый эфир 28 бонусных токенов', async function () {
+	const _rate = await token.getAmountBonus(toWei(5000));
+	assert.isTrue(_rate.equals(28), 'must be 28');
+  });
+		  
+  it('на любой стадии продажи инвестор, внесший сумму свыше 10000 эфиров, получит за каждый эфир 40 бонусных токенов', async function () {
+	const _rate = await token.getAmountBonus(toWei(10000));
+	assert.isTrue(_rate.equals(40), 'must be 40');
+  });
+			  
+  it('продажа находится в стадии закрытого пресейла', async function () {
+	const _state = await token.saleState();
+	assert.isTrue(_state.equals(SaleState.closedPresale.value), 'must be 0');
+  });
+	  
+  it('на этой стадии инвестор получит 280 бонусных токенов за каждый эфир', async function () {
+	const _now = await token.getNow();
+	const _bonus = await token.getTimeBonus(0, _now);
+	assert.isTrue(_bonus.equals(280), 'must be 280');
+  });
+	
+  it('на этой стадии минимальный платеж составляет 40 эфиров', async function () {
+	const _min = await token.getMinDeposit(SaleState.closedPresale.value);
+	assert.isTrue(_min.equals(toWei(40)), 'must be 40');
+  });
+		
+  it('инвестор вносит 1 эфир. Неудачно.', async function () {
+	const { receipt, logs } = await token.sendTransaction({ value: toWei(1), from: investor });
+	glogs = logs;
+	assert.equal(receipt.status, 1, 'must be 1');
+  });
+	
+  it('токены не были отчеканены', async function () {
+	const _supply = await token.totalSupply();
+	assert.equal(_supply, 0, 'must be 0');
+  });
+
+  it('баланс инвестора равен 0', async function () {
+	const _balance = await token.balanceOf(investor);
+	assert.equal(_balance, 0, 'must be 0');
+  });
+
+  it('средства не были собраны', async function () {
+	const _raised = await token.weiRaised();
+	assert.equal(_raised, 0, 'must be 0');
+  });
+
+  it('средства были возвращены инвестору', async function () {
+	const event = glogs.find(e => e.event === 'MinimumPaymentNotReached' &&
+							 e.args.payer === investor && e.args.weiAmount.equals(toWei(1)));
+	expect(event, 'должно было произойти событие MinimumPaymentNotReached').to.exist;
+
+	const event1 = glogs.find(e => e.event === 'RedundantFundsReturned' &&
+			 				  e.args.payer === investor && e.args.amount.equals(toWei(1)));
+	expect(event1, 'должно было произойти событие RedundantFundsReturned').to.exist;
+  });
+
+  it('инвестор вносит 40 эфиров. Удачно.', async function () {
+	const { receipt, logs } = await token.sendTransaction({ value: toWei(40), from: investor });
+	glogs = logs;
+	assert.equal(receipt.status, 1, 'must be 1');
+  });
+		
+  it('токены были отчеканены', async function () {
+	const _supply = await token.totalSupply();
+	
+	const event = glogs.find(e => e.event === 'Mint' &&
+			 e.args.to === investor);
+	expect(event, 'должно было произойти событие Mint').to.exist;
+	assert.isTrue(_supply.equals(event.args.amount));
+	gtotalSupply = gtotalSupply.plus(_supply);
+	glastMinted = glastMinted.plus(event.args.amount);
+	gminted = gminted.plus(glastMinted);
+  });
+
+  it('баланс инвестора равен ' + toEther(glastMinted), async function () {
+	const _balance = await token.balanceOf(investor);
+	console.log(_balance);
+	assert.isTrue(_balance.equals(glastMinted), 'must be equal');
+  });
+
+  it('собраны', async function () {
+	const _raised = await token.weiRaised();
+	assert.isTrue(_raised.equals(toWei(40)), 'must be 0');
+  });
+
+  
+  
+/*  it('should be ended only after end', async function () {
     let ended = await this.crowdsale.hasEnded();
     ended.should.equal(false);
     await increaseTimeTo(this.afterEndTime);
@@ -140,4 +336,5 @@ contract('Crowdsale', function ([_, investor, wallet, purchaser]) {
       post.minus(pre).should.be.bignumber.equal(value);
     });
   });
+  */
 });
