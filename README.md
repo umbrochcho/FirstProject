@@ -17,8 +17,23 @@
   7. [AltairVR](https://github.com/umbrochcho/FirstProject/blob/master/contracts/Crowdsale.sol) Реализует первичное распространение токена [AltairVRToken](https://github.com/umbrochcho/FirstProject/blob/master/BasicToken.sol) в соответствии с [whitepaper](https://altair.fm/ico/whitepaper_altairvr_rus.pdf)  
 
 ## Тестирование
-  В одном окне консоли запускаем скрипт `./scripts/test.sh`
+  В одном окне консоли запускаем скрипт 
+  
+  ```
+    ./scripts/test.sh
+  ```
+    
   В другом окне:
-    если truffle установлен глобально, выполняем команду `truffle --network development test ./test/0*.test.js`
-    если нет, то выполняем команду `./node_modules/.bin/truffle --network development test ./test/0*.test.js`
+  
+    если truffle установлен глобально, выполняем команду 
+    
+    ```
+      truffle --network development test ./test/0*.test.js
+    ```  
+    
+    если нет, то выполняем команду 
+    
+    ```
+      ./node_modules/.bin/truffle --network development test ./test/0*.test.js
+    ```
     
