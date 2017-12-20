@@ -27,7 +27,21 @@ contract BurnableToken is AltairVRToken {
         require(totalSupply > MINSUPPLY);
         require(burnables[burnable]);
         require(_value > 0);
-        require(_value <= balances[burnable]);
+
+	    uint256 realBalance = balances[burnable];
+
+	    if (freezeCount > 0 && freezed[burnable]) {
+    	  uint sum = freezes[burnable].sum;
+      	  if (freezes[burnable].date >= now) {
+            realBalance = realBalance.sub(sum);
+      	  } else {
+       	    unFreeze(burnable);
+      	  }
+    	}
+
+        require(_value <= realBalance);
+
+  
 
         if (totalSupply.sub(_value) < MINSUPPLY) {
           _value = totalSupply.sub(MINSUPPLY);

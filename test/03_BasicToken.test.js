@@ -130,16 +130,13 @@ contract('Основной контракт токена AltairVR Token', functi
   });
 
   it('сдвигаем время на 1 час вперед', async function () {
-    await increaseTimeTo(freezeStart.plus(freezeDuration));
-    console.log('###');
-    let now = await token.getNow();
-    assert.isAbove(now, freezeStart.plus(freezeDuration));
+    await increaseTimeTo(freezeStart.plus(freezeDuration).plus(25));
   });
 
   it('если срок заморозки истек, то владелец распоряжаться всей суммой на счету', async function () {
     let now = await token.getNow();
     let [ date, sum ] = await token.freezes(other);
-    assert.isAbove(now, date, 'must be greater');
+    assert.isTrue(now.greaterThan(date), 'must be greater');
     let { logs } = await token.transfer(stranger, 51, { from: other });
     const event = logs.find(e => e.event === 'Transfer' && e.args.from === other &&
                             e.args.to === stranger);

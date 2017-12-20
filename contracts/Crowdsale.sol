@@ -30,9 +30,9 @@ contract AltairVR is StandardToken {
   uint256 public weiRaised;
 
   // special balances share in percents of totlalSupply
-  uint256 constant teamSharePercents = 15;
-  uint256 constant platformSharePercents = 32;
-  uint256 constant bountySharePercents = 3;
+  uint256 constant teamSharePercents = 30;
+  uint256 constant platformSharePercents = 64;
+  uint256 constant bountySharePercents = 6;
 
  // sale state properties
     uint256 constant endClosedPresale = 1515974399; //14.01.2018 23:59:59 GMT
@@ -184,6 +184,7 @@ contract AltairVR is StandardToken {
     uint256 _nextWeiRaised = _weiRaised.add(_weiAmount);
     uint256 _now = now;
     uint256 _totalSupply = totalSupply;
+    uint256 _nextSupply = 0;
     
     // this will be returned
     weiAmount = _weiAmount;
@@ -265,6 +266,11 @@ contract AltairVR is StandardToken {
             canBuyTokens = true;
             realRate = realRate.add(getAmountWeiBonus(weiAmount));
             realRate = realRate.add(getTimeCrowdsaleBonus(startCrowdsale, _now));
+            _nextSupply = _totalSupply.add(realRate.mul(weiAmount));
+            if (_nextSupply > TOKENSTOSALE) {
+              weiToReturn = _nextSupply.sub(TOKENSTOSALE).div(realRate);
+              weiAmount = weiAmount.sub(weiToReturn);	
+            } 
         } else {
           MinimumPaymentNotReached(msg.sender, weiAmount, minWeiDepositCrowdsale);
           weiToReturn = weiAmount;
@@ -381,13 +387,13 @@ contract AltairVR is StandardToken {
   function finalizeSale() internal {
     uint256 _totalSupply = totalSupply;
 
-    uint256 _share = (_totalSupply.mul(teamSharePercents)).div(100);
+    uint256 _share = _totalSupply.mul(teamSharePercents).div(100);
 
     mint(teamAddress, _share);
     teamShare = _share;
     setFreeze(teamAddress, saleEndTime.add(teamShareFreezeDuration) - 1, _share);
 
-    _share = (_totalSupply.mul(platformSharePercents)).div(100);
+    _share = _totalSupply.mul(platformSharePercents).div(100);
 
     if (platformAddress != address(0)) {
       mint(platformAddress, _share);
@@ -396,7 +402,7 @@ contract AltairVR is StandardToken {
     }
     platformShare = _share;
     
-    _share = (_totalSupply.mul(bountySharePercents)).div(100);
+    _share = _totalSupply.mul(bountySharePercents).div(100);
 
     mint(bountyAddress, _share);
     bountyShare = _share;

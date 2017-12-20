@@ -568,105 +568,120 @@ contract('Продажа токенов', function (accounts) {
       expect(event1, 'должно было произойти событие RedundantFundsReturned').to.exist;
       });
     
-  /*  it('should be ended only after end', async function () {
-    let ended = await this.crowdsale.hasEnded();
-    ended.should.equal(false);
-    await increaseTimeTo(this.afterEndTime);
-    ended = await this.crowdsale.hasEnded();
-    ended.should.equal(true);
-  });
-
-  describe('accepting payments', function () {
-    it('should reject payments before start', async function () {
-      await this.crowdsale.send(value).should.be.rejectedWith(EVMRevert);
-      await this.crowdsale.buyTokens(investor, { from: purchaser, value: value }).should.be.rejectedWith(EVMRevert);
-    });
-
-    it('should accept payments after start', async function () {
-      await increaseTimeTo(this.startTime);
-      await this.crowdsale.send(value).should.be.fulfilled;
-      await this.crowdsale.buyTokens(investor, { value: value, from: purchaser }).should.be.fulfilled;
-    });
-
-    it('should reject payments after end', async function () {
-      await increaseTimeTo(this.afterEndTime);
-      await this.crowdsale.send(value).should.be.rejectedWith(EVMRevert);
-      await this.crowdsale.buyTokens(investor, { value: value, from: purchaser }).should.be.rejectedWith(EVMRevert);
-    });
-  });
-
-  describe('high-level purchase', function () {
-    beforeEach(async function () {
-      await increaseTimeTo(this.startTime);
-    });
-
-    it('should log purchase', async function () {
-      const { logs } = await this.crowdsale.sendTransaction({ value: value, from: investor });
-
-      const event = logs.find(e => e.event === 'TokenPurchase');
-
-      should.exist(event);
-      event.args.purchaser.should.equal(investor);
-      event.args.beneficiary.should.equal(investor);
-      event.args.value.should.be.bignumber.equal(value);
-      event.args.amount.should.be.bignumber.equal(expectedTokenAmount);
-    });
-
-    it('should increase totalSupply', async function () {
-      await this.crowdsale.send(value);
-      const totalSupply = await this.token.totalSupply();
-      totalSupply.should.be.bignumber.equal(expectedTokenAmount);
-    });
-
-    it('should assign tokens to sender', async function () {
-      await this.crowdsale.sendTransaction({ value: value, from: investor });
-      let balance = await this.token.balanceOf(investor);
-      balance.should.be.bignumber.equal(expectedTokenAmount);
-    });
-
-    it('should forward funds to wallet', async function () {
-      const pre = web3.eth.getBalance(wallet);
-      await this.crowdsale.sendTransaction({ value, from: investor });
-      const post = web3.eth.getBalance(wallet);
-      post.minus(pre).should.be.bignumber.equal(value);
-    });
-  });
-
-  describe('low-level purchase', function () {
-    beforeEach(async function () {
-      await increaseTimeTo(this.startTime);
-    });
-
-    it('should log purchase', async function () {
-      const { logs } = await this.crowdsale.buyTokens(investor, { value: value, from: purchaser });
-
-      const event = logs.find(e => e.event === 'TokenPurchase');
-
-      should.exist(event);
-      event.args.purchaser.should.equal(purchaser);
-      event.args.beneficiary.should.equal(investor);
-      event.args.value.should.be.bignumber.equal(value);
-      event.args.amount.should.be.bignumber.equal(expectedTokenAmount);
-    });
-
-    it('should increase totalSupply', async function () {
-      await this.crowdsale.buyTokens(investor, { value, from: purchaser });
-      const totalSupply = await this.token.totalSupply();
-      totalSupply.should.be.bignumber.equal(expectedTokenAmount);
-    });
-
-    it('should assign tokens to beneficiary', async function () {
-      await this.crowdsale.buyTokens(investor, { value, from: purchaser });
-      const balance = await this.token.balanceOf(investor);
-      balance.should.be.bignumber.equal(expectedTokenAmount);
-    });
-
-    it('should forward funds to wallet', async function () {
-      const pre = web3.eth.getBalance(wallet);
-      await this.crowdsale.buyTokens(investor, { value, from: purchaser });
-      const post = web3.eth.getBalance(wallet);
-      post.minus(pre).should.be.bignumber.equal(value);
-    });
-  });
-  */
+      it('инвестор вносит 40 эфиров. Удачно.', async function () {
+    	    const { receipt, logs } = await token.sendTransaction({ value: toWei(40), from: investor });
+    	    glogs = logs;
+    	    assert.equal(receipt.status, 1, 'must be 1');
+    	    });
+    	      
+    	    it('собрано 5040 эфиров', async function () {
+    	    const _raised = await token.weiRaised();
+    	    assert.isTrue(_raised.equals(toWei(5040)), 'must be 5040');
+    	    });
+    	  
+    	    it('баланс кошелька для собранных средств увеличился на 40 эфиров', async function () {
+    	      const _pre = await web3.eth.getBalance(wallet);
+    	      assert.isTrue(_pre.equals(walletWei.plus(toWei(40))), 'must be equal');
+    	      walletWei = _pre;
+    	    });
+    	    
+    	    it('инвестор вносит 125000 эфиров и превышает хардкап краудсейла', async function () {
+    	      const { receipt, logs } = await token.sendTransaction({ value: toWei(125000), from: investor });
+    	      glogs = logs;
+    	      const event1 = glogs.find(e => e.event === 'RedundantFundsReturned' &&
+	                     e.args.payer === investor);
+    	      const event2 = glogs.find(e => e.event === 'Mint' &&
+	                     e.args.to === investor);
+    	      assert.equal(receipt.status, 1, 'must be 1');
+    	    });
+    	        
+    	    it('баланс кошелька для сбора средств увеличился', async function () {
+    	      const _pre = await web3.eth.getBalance(wallet);
+    	      assert.isTrue(_pre.greaterThan(walletWei), 'must be greater');
+    	      walletWei = _pre;
+    	    });
+    	    
+    	    it('избыточные эфиры были возвращены инвестору', async function () {
+    	      const event1 = glogs.find(e => e.event === 'RedundantFundsReturned' &&
+    	                     e.args.payer === investor);
+    	      expect(event1, 'должно было произойти событие RedundantFundsReturned').to.exist;
+    	    });
+    	    
+    	    it('отчеканено 50 000 000 токенов', async function () {
+    	      const _supply = await token.totalSupply();
+    	      assert.isTrue(_supply.equals(toWei(tokensToSale)), 'must be 50 000 000');
+    	    });
+    	    
+    	    it('инвестор вносит еще один эфир', async function () {
+    	      const { receipt, logs } = await token.sendTransaction({ value: toWei(1), from: investor });
+    	      glogs = logs;
+    	      assert.equal(receipt.status, 1, 'must be 1');
+    	    });
+    	        
+    	    it('баланс кошелька для сбора средств не изменился', async function () {
+    	      const _pre = await web3.eth.getBalance(wallet);
+    	      assert.isTrue(_pre.equals(walletWei), 'must be equal');
+    	      walletWei = _pre;
+    	    });
+    	    
+    	    it('1 эфир был возвращен инвестору', async function () {
+    	      const event1 = glogs.find(e => e.event === 'RedundantFundsReturned' &&
+    	                     e.args.payer === investor && e.args.amount.equals(toWei(1)));
+    	      expect(event1, 'должно было произойти событие RedundantFundsReturned').to.exist;
+    	    });
+    	    
+    	    it('всего имеется 100 000 000 токенов', async function () {
+      	      const _supply = await token.totalSupply();
+      	      assert.isTrue(_supply.equals(toWei(2*tokensToSale)), 'must be 100 000 000');
+      	    });
+      	    
+    	    it('краудсейл окончен', async function () {
+    	      const _state = await token.saleState();
+    	      assert.isTrue(_state.equals(SaleState.Finalized.value), 'must be 6');
+    	    });
+      	    
+    	    it('токен перешел в режим обычного функционирования', async function () {
+    	      const _state = await token.tokenState();
+    	      assert.isTrue(_state.equals(TokenState.tokenNormal), 'must be 1');
+    	    });
+      	    
+    	    it('чеканка токенов прекращена', async function () {
+    	      const _minting = await token.minting();
+    	      assert.isFalse(_minting, 'must be false');
+    	    });
+      	    
+    	    it('на балансе команды теперь 15 000 000 токенов', async function () {
+    	      const _balance = await token.balanceOf(team);
+    	      assert.isTrue(_balance.equals(toWei(15000000)), 'must be 15 000 000');
+    	    });
+    	    
+    	    it('на балансе баунти теперь 3 000 000 токенов', async function () {
+      	      const _balance = await token.balanceOf(bounty);
+      	      assert.isTrue(_balance.equals(toWei(3000000)), 'must be 3 000 000');
+      	    });
+    	    
+    	    it('на балансе платформы теперь 32 000 000 токенов', async function () {
+      	      const _balance = await token.balanceOf(platform);
+      	      assert.isTrue(_balance.equals(toWei(32000000)), 'must be 32 000 000');
+      	    });
+      	    
+    	    it('на балансе команды заморожено 15 000 000 токенов на год с момента окончания продажи', async function () {
+    	      const _freezed = await token.freezed(team);
+    	      assert.isTrue(_freezed, 'must be true');
+    	      const _end = await token.saleEndTime();
+    	      const [ date, sum ] = await token.freezes(team);
+    	      assert.isTrue(date.equals(_end.plus(86400*365).minus(1)), 'must be true')
+    	      const _balance = await token.balanceOf(team);
+    	      assert.isTrue(_balance.equals(sum), 'must be 15 000 000');
+    	    });
+      	    
+    	    it('на балансе баунти заморожено 3 000 000 токенов на 45 дней с момента окончания продажи', async function () {
+    	      const _freezed = await token.freezed(bounty);
+    	      assert.isTrue(_freezed, 'must be true');
+    	      const _end = await token.saleEndTime();
+    	      const [ date, sum ] = await token.freezes(bounty);
+    	      assert.isTrue(date.equals(_end.plus(86400*45).minus(1)), 'must be true')
+    	      const _balance = await token.balanceOf(bounty);
+    	      assert.isTrue(_balance.equals(sum), 'must be 15 000 000');
+    	    });
 });
