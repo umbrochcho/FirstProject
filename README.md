@@ -15,3 +15,10 @@
   5. [Mintable Token](https://github.com/umbrochcho/FirstProject/blob/master/contracts/MintableToken.sol) Расширение функционала токена, позволяющее выпускать новые токены
   6. [Standard Token](https://github.com/umbrochcho/FirstProject/blob/master/contracts/StandardToken.sol) Реализует [ERC20](https://github.com/umbrochcho/FirstProject/blob/master/ERC20.sol) 
   7. [AltairVR](https://github.com/umbrochcho/FirstProject/blob/master/contracts/Crowdsale.sol) Реализует первичное распространение токена [AltairVRToken](https://github.com/umbrochcho/FirstProject/blob/master/BasicToken.sol) в соответствии с [whitepaper](https://altair.fm/ico/whitepaper_altairvr_rus.pdf)  
+
+## Тестирование
+  В одном окне консоли запускаем скрипт `./scripts/test.sh`
+  В другом окне:
+    если truffle установлен глобально, выполняем команду `truffle --network development test ./test/0*.test.js`
+    если нет, то выполняем команду `./node_modules/.bin/truffle --network development test ./test/0*.test.js`
+    
