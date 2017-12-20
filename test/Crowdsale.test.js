@@ -31,7 +31,7 @@ contract('Продажа токенов', function (accounts) {
 		  			 publicPresale: {value: 2,
 		  				 			 start: new Date(Date.UTC(2018, 0, 15, 0, 0, 0)),
 		  				 			 end: new Date(Date.UTC(2018, 0, 29, 23, 59, 59)),
-		  				 			 durationDays: 15,
+		  				 			 durationDays: 15*86400,
 		  				 			 minDeposit: toWei(0.05),
 		  				 			 hardCap: toWei(5000)
 		  				 			}, 
@@ -43,7 +43,7 @@ contract('Продажа токенов', function (accounts) {
 		  			 crowdSale: {value: 4,
 		  				 		 start: new Date(Date.UTC(2018, 2, 12, 0, 0, 0)),
 		  				 		 end: new Date(Date.UTC(2018, 3, 25, 23, 59, 59)),
-		  				 		 durationDays: 45,
+		  				 		 durationDays: 45*86400,
 		  				 		 minDeposit: toWei(0.05),
 		  				 		 hardCap: toWei(125000)
 		  				 		}, 
@@ -53,7 +53,7 @@ contract('Продажа токенов', function (accounts) {
 		  			};
   
   const tokensToSale = 50000000;
-  const wallet = accounts[1];
+  const wallet = accounts[9];
   const team = accounts[2];
   const bounty = accounts[3];
   const platform = accounts[4];
@@ -65,6 +65,8 @@ contract('Продажа токенов', function (accounts) {
   let gminted = new BigNumber(0);
   let glastMinted = new BigNumber(0);
   let gtotalSupply = new BigNumber(0);
+  let walletWei = new BigNumber(0);
+  let investorTokens = new BigNumber(0);
 
   before(async function () {
     // Advance to the next block to correctly read time in the solidity "now" function interpreted by testrpc
@@ -89,18 +91,19 @@ contract('Продажа токенов', function (accounts) {
   });
 
   it('количество собранного эфира равно 0', async function () {
-	const raised = await token.weiRaised();
-	assert.equal(raised, 0, 'must be 0');
+  	const raised = await token.weiRaised();
+	  assert.equal(raised, 0, 'must be 0');
   });
 
   it('адрес кошелька для собранных средств не равен 0', async function () {
-	const _team = await token.wallet();
-	assert.notEqual(_team, 0, 'must be above 0');
+	  const _team = await token.wallet();
+	  assert.notEqual(_team, 0, 'must be above 0');
+    walletWei = await web3.eth.getBalance(wallet);
   });
 
   it('адрес команды не равен 0', async function () {
-	const _team = await token.teamAddress();
-	assert.notEqual(_team, 0, 'must be above 0');
+	  const _team = await token.teamAddress();
+	  assert.notEqual(_team, 0, 'must be above 0');
   });
 
   it('баланс команды равен 0', async function () {
@@ -163,6 +166,11 @@ contract('Продажа токенов', function (accounts) {
 	assert.isTrue(_state.equals(SaleState.closedPresale.value), 'must be 0');
   });
 	  
+  it('собранные средства в закрытом пресейле ограничены 700 эфиров', async function () {
+    let _start = await token.getHardCap(SaleState.closedPresale.value);
+    assert.isTrue(_start.equals(SaleState.closedPresale.hardCap), 'must be true');
+  });
+      
   it('на этой стадии инвестор получит 280 бонусных токенов за каждый эфир', async function () {
 	const _now = await token.getNow();
 	const _bonus = await token.getTimeBonus(0, _now);
@@ -171,7 +179,7 @@ contract('Продажа токенов', function (accounts) {
 	
   it('на этой стадии минимальный платеж составляет 40 эфиров', async function () {
 	const _min = await token.getMinDeposit(SaleState.closedPresale.value);
-	assert.isTrue(_min.equals(toWei(40)), 'must be 40');
+	assert.isTrue(_min.equals(SaleState.closedPresale.minDeposit), 'must be 40');
   });
 		
   it('инвестор вносит 1 эфир. Неудачно.', async function () {
@@ -195,6 +203,11 @@ contract('Продажа токенов', function (accounts) {
 	assert.equal(_raised, 0, 'must be 0');
   });
 
+  it('баланс кошелька для собранных средств не изменился', async function () {
+    const _pre = await web3.eth.getBalance(wallet);
+    assert.isTrue(_pre.equals(walletWei), 'must be equal');
+  });
+  
   it('средства были возвращены инвестору', async function () {
 	const event = glogs.find(e => e.event === 'MinimumPaymentNotReached' &&
 							 e.args.payer === investor && e.args.weiAmount.equals(toWei(1)));
@@ -217,26 +230,345 @@ contract('Продажа токенов', function (accounts) {
 	const event = glogs.find(e => e.event === 'Mint' &&
 			 e.args.to === investor);
 	expect(event, 'должно было произойти событие Mint').to.exist;
-	assert.isTrue(_supply.equals(event.args.amount));
 	gtotalSupply = gtotalSupply.plus(_supply);
 	glastMinted = glastMinted.plus(event.args.amount);
-	gminted = gminted.plus(glastMinted);
+  gminted = gminted.plus(glastMinted);
+  investorTokens = investorTokens.plus(glastMinted);
+	assert.isTrue(_supply.equals(gminted));
   });
 
-  it('баланс инвестора равен ' + toEther(glastMinted), async function () {
-	const _balance = await token.balanceOf(investor);
-	console.log(_balance);
-	assert.isTrue(_balance.equals(glastMinted), 'must be equal');
+  it('у инвестора добавилось токенов', async function () {
+  	const event = glogs.find(e => e.event === 'TokenPurchase' &&
+			 e.args.beneficiary === investor && e.args.amount.equals(glastMinted));
+	  expect(event, 'должно было произойти событие TokenPurchase').to.exist;
+	  const _balance = await token.balanceOf(investor);
+	  assert.isTrue(_balance.equals(investorTokens), 'must be equal');
   });
 
-  it('собраны', async function () {
+  it('собрано 40 эфиров', async function () {
 	const _raised = await token.weiRaised();
-	assert.isTrue(_raised.equals(toWei(40)), 'must be 0');
+	assert.isTrue(_raised.equals(toWei(40)), 'must be 40');
   });
 
+  it('баланс кошелька для собранных средств увеличился на 40 эфиров', async function () {
+    const _pre = await web3.eth.getBalance(wallet);
+    assert.isTrue(_pre.equals(walletWei.plus(toWei(40))), 'must be equal');
+    walletWei = _pre;
+  });
   
+  it('инвестор вносит 700 эфиров и превышает хардкап закрытого пресейла', async function () {
+    const { receipt, logs } = await token.sendTransaction({ value: toWei(700), from: investor });
+    glogs = logs;
+    assert.equal(receipt.status, 1, 'must be 1');
+  });
+      
+  it('баланс кошелька для сбора средств увеличился на 660 эфиров', async function () {
+    const _pre = await web3.eth.getBalance(wallet);
+    assert.isTrue(_pre.equals(walletWei.plus(toWei(660))), 'must be equal');
+    walletWei = _pre;
+  });
   
-/*  it('should be ended only after end', async function () {
+  it('40 эфиров были возвращены инвестору', async function () {
+    const event1 = glogs.find(e => e.event === 'RedundantFundsReturned' &&
+                   e.args.payer === investor && e.args.amount.equals(toWei(40)));
+    expect(event1, 'должно было произойти событие RedundantFundsReturned').to.exist;
+  });
+  
+  it('собрано 700 эфиров', async function () {
+    const _raised = await token.weiRaised();
+    assert.isTrue(_raised.equals(toWei(700)), 'must be 700');
+  });
+  
+  it('инвестор вносит еще один эфир', async function () {
+    const { receipt, logs } = await token.sendTransaction({ value: toWei(1), from: investor });
+    glogs = logs;
+    assert.equal(receipt.status, 1, 'must be 1');
+  });
+      
+  it('баланс кошелька для сбора средств не изменился', async function () {
+    const _pre = await web3.eth.getBalance(wallet);
+    assert.isTrue(_pre.equals(walletWei), 'must be equal');
+    walletWei = _pre;
+  });
+  
+  it('1 эфир был возвращен инвестору', async function () {
+    const event1 = glogs.find(e => e.event === 'RedundantFundsReturned' &&
+                   e.args.payer === investor && e.args.amount.equals(toWei(1)));
+    expect(event1, 'должно было произойти событие RedundantFundsReturned').to.exist;
+  });
+  
+  it('собрано 700 эфиров', async function () {
+    const _raised = await token.weiRaised();
+    assert.isTrue(_raised.equals(toWei(700)), 'must be 700');
+  });
+  
+  it('закрытый пресейл окончен', async function () {
+    const _state = await token.saleState();
+    assert.isTrue(_state.equals(SaleState.closedPresaleEnded.value), 'must be 1');
+  });
+      
+  it('между закрытым пресейлом и открытым пресейлом продажа токенов невозможна', async function () {
+  });
+      
+  it('инвестор вносит еще один эфир', async function () {
+    const { receipt, logs } = await token.sendTransaction({ value: toWei(1), from: investor });
+    glogs = logs;
+    assert.equal(receipt.status, 1, 'must be 1');
+  });
+      
+  it('баланс кошелька для сбора средств не изменился', async function () {
+    const _pre = await web3.eth.getBalance(wallet);
+    assert.isTrue(_pre.equals(walletWei), 'must be equal');
+    walletWei = _pre;
+  });
+  
+  it('1 эфир был возвращен инвестору', async function () {
+    const event1 = glogs.find(e => e.event === 'RedundantFundsReturned' &&
+                   e.args.payer === investor && e.args.amount.equals(toWei(1)));
+    expect(event1, 'должно было произойти событие RedundantFundsReturned').to.exist;
+  });
+  
+  it('собрано 700 эфиров', async function () {
+    const _raised = await token.weiRaised();
+    assert.isTrue(_raised.equals(toWei(700)), 'must be 700');
+  });
+  
+  it('открытый пресейл начинается 15 января 2018 года в 00:00:00 по Гринвичу', async function () {
+    let _start = await token.getPublicPresaleStart();
+    assert.isTrue(_start.equals(Math.round(SaleState.publicPresale.start.getTime()/1000)), 'must be true');
+  });
+      
+  it('открытый пресейл длится 15 дней', async function () {
+    let _start = await token.getPublicPresaleDuration();
+    assert.isTrue(_start.equals(SaleState.publicPresale.durationDays), 'must be true');
+  });
+  
+  it('открытый пресейл заканчивается 29 января 2018 года в 23:59:59 по Гринвичу', async function () {
+    let _start = await token.getPublicPresaleEnd();
+    assert.isTrue(_start.equals(Math.round(SaleState.publicPresale.end.getTime()/1000)), 'must be true');
+  });
+  
+  it('собранные средства в публичном пресейле ограничены 5000 эфиров', async function () {
+    let _start = await token.getHardCap(SaleState.publicPresale.value);
+    assert.isTrue(_start.equals(SaleState.publicPresale.hardCap), 'must be true');
+  });
+
+  it('на этой стадии минимальный платеж составляет 0.05 эфиров', async function () {
+    const _min = await token.getMinDeposit(SaleState.publicPresale.value);
+    assert.isTrue(_min.equals(SaleState.publicPresale.minDeposit), 'must be 0.05');
+  });
+    
+  it('сдвигаем время на 15 января 2018 года в 00:00:10 по Гринвичу', async function () {
+    await increaseTimeTo(Math.round((SaleState.publicPresale.start.getTime() + 10000)/1000));
+    await advanceBlock();
+  });
+
+  it('на этой стадии инвестор получит 100 бонусных токенов за каждый эфир', async function () {
+    const _now = await token.getNow();
+    const _bonus = await token.getTimeBonus(0, _now);
+    assert.isTrue(_bonus.equals(100), 'must be 100');
+  });
+		
+  it('инвестор вносит 0.01 эфир. Неудачно.', async function () {
+    const { receipt, logs } = await token.sendTransaction({ value: toWei(0.01), from: investor });
+    glogs = logs;
+    assert.equal(receipt.status, 1, 'must be 1');
+    });
+    
+    it('баланс кошелька для собранных средств не изменился', async function () {
+      const _pre = await web3.eth.getBalance(wallet);
+      assert.isTrue(_pre.equals(walletWei), 'must be equal');
+    });
+    
+    it('средства были возвращены инвестору', async function () {
+    const event = glogs.find(e => e.event === 'MinimumPaymentNotReached' &&
+                 e.args.payer === investor && e.args.weiAmount.equals(toWei(0.01)));
+    expect(event, 'должно было произойти событие MinimumPaymentNotReached').to.exist;
+  
+    const event1 = glogs.find(e => e.event === 'RedundantFundsReturned' &&
+                   e.args.payer === investor && e.args.amount.equals(toWei(0.01)));
+    expect(event1, 'должно было произойти событие RedundantFundsReturned').to.exist;
+    });
+  
+    it('инвестор вносит 40 эфиров. Удачно.', async function () {
+    const { receipt, logs } = await token.sendTransaction({ value: toWei(40), from: investor });
+    glogs = logs;
+    assert.equal(receipt.status, 1, 'must be 1');
+    });
+      
+    it('собрано 740 эфиров', async function () {
+    const _raised = await token.weiRaised();
+    assert.isTrue(_raised.equals(toWei(740)), 'must be 740');
+    });
+  
+    it('баланс кошелька для собранных средств увеличился на 40 эфиров', async function () {
+      const _pre = await web3.eth.getBalance(wallet);
+      assert.isTrue(_pre.equals(walletWei.plus(toWei(40))), 'must be equal');
+      walletWei = _pre;
+    });
+    
+    it('инвестор вносит 5000 эфиров и превышает хардкап закрытого пресейла', async function () {
+      const { receipt, logs } = await token.sendTransaction({ value: toWei(5000), from: investor });
+      glogs = logs;
+      assert.equal(receipt.status, 1, 'must be 1');
+    });
+        
+    it('баланс кошелька для сбора средств увеличился на 4260 эфиров', async function () {
+      const _pre = await web3.eth.getBalance(wallet);
+      assert.isTrue(_pre.equals(walletWei.plus(toWei(4260))), 'must be equal');
+      walletWei = _pre;
+    });
+    
+    it('740 эфиров были возвращены инвестору', async function () {
+      const event1 = glogs.find(e => e.event === 'RedundantFundsReturned' &&
+                     e.args.payer === investor && e.args.amount.equals(toWei(740)));
+      expect(event1, 'должно было произойти событие RedundantFundsReturned').to.exist;
+    });
+    
+    it('собрано 5000 эфиров', async function () {
+      const _raised = await token.weiRaised();
+      assert.isTrue(_raised.equals(toWei(5000)), 'must be 5000');
+    });
+    
+    it('инвестор вносит еще один эфир', async function () {
+      const { receipt, logs } = await token.sendTransaction({ value: toWei(1), from: investor });
+      glogs = logs;
+      assert.equal(receipt.status, 1, 'must be 1');
+    });
+        
+    it('баланс кошелька для сбора средств не изменился', async function () {
+      const _pre = await web3.eth.getBalance(wallet);
+      assert.isTrue(_pre.equals(walletWei), 'must be equal');
+      walletWei = _pre;
+    });
+    
+    it('1 эфир был возвращен инвестору', async function () {
+      const event1 = glogs.find(e => e.event === 'RedundantFundsReturned' &&
+                     e.args.payer === investor && e.args.amount.equals(toWei(1)));
+      expect(event1, 'должно было произойти событие RedundantFundsReturned').to.exist;
+    });
+    
+    it('собрано 5000 эфиров', async function () {
+      const _raised = await token.weiRaised();
+      assert.isTrue(_raised.equals(toWei(5000)), 'must be 5000');
+    });
+    
+    it('открытый пресейл окончен', async function () {
+      const _state = await token.saleState();
+      assert.isTrue(_state.equals(SaleState.publicPresaleEnded.value), 'must be 4');
+    });
+        
+    it('между открытым пресейлом и краудсейлом продажа токенов невозможна', async function () {
+    });
+        
+    it('инвестор вносит еще один эфир', async function () {
+      const { receipt, logs } = await token.sendTransaction({ value: toWei(1), from: investor });
+      glogs = logs;
+      assert.equal(receipt.status, 1, 'must be 1');
+    });
+        
+    it('баланс кошелька для сбора средств не изменился', async function () {
+      const _pre = await web3.eth.getBalance(wallet);
+      assert.isTrue(_pre.equals(walletWei), 'must be equal');
+      walletWei = _pre;
+    });
+    
+    it('1 эфир был возвращен инвестору', async function () {
+      const event1 = glogs.find(e => e.event === 'RedundantFundsReturned' &&
+                     e.args.payer === investor && e.args.amount.equals(toWei(1)));
+      expect(event1, 'должно было произойти событие RedundantFundsReturned').to.exist;
+    });
+    
+    it('собрано 5000 эфиров', async function () {
+      const _raised = await token.weiRaised();
+      assert.isTrue(_raised.equals(toWei(5000)), 'must be 5000');
+    });
+    
+    it('краудсейл начинается 12 марта 2018 года в 00:00:00 по Гринвичу', async function () {
+      let _start = await token.getCrowdsaleStart();
+      assert.isTrue(_start.equals(Math.round(SaleState.crowdSale.start.getTime()/1000)), 'must be true');
+    });
+        
+    it('краудсейл длится 45 дней', async function () {
+      let _start = await token.getCrowdsaleDuration();
+      assert.isTrue(_start.equals(SaleState.crowdSale.durationDays), 'must be true');
+    });
+    
+    it('краудсейл заканчивается 25 апреля 2018 года в 23:59:59 по Гринвичу', async function () {
+      let _start = await token.getCrowdsaleEnd();
+      assert.isTrue(_start.equals(Math.round(SaleState.crowdSale.end.getTime()/1000)), 'must be true');
+    });
+    
+    it('собранные средства в краудсейле ограничены 50 000 000 токенов', async function () {
+    });
+  
+    it('на этой стадии минимальный платеж составляет 0.05 эфиров', async function () {
+      const _min = await token.getMinDeposit(SaleState.crowdSale.value);
+      assert.isTrue(_min.equals(SaleState.crowdSale.minDeposit), 'must be 0.05');
+    });
+      
+    it('сдвигаем время на 12 марта 2018 года 00:00:10 по Гринвичу', async function () {
+      await increaseTimeTo(Math.round((SaleState.crowdSale.start.getTime() + 10000)/1000));
+      await advanceBlock();
+    });
+            
+    it('в первый час краудсейла инвестор получит 60 бонусных токенов за каждый эфир', async function () {
+      const _start = Math.round(SaleState.crowdSale.start.getTime()/1000);
+      const _now = _start + 1800;
+      const _bonus = await token.getTimeBonus(_start, _now);
+      assert.isTrue(_bonus.equals(60), 'must be 60');
+    });
+            
+    it('в первую неделю краудсейла инвестор получит 40 бонусных токенов за каждый эфир', async function () {
+      const _start = Math.round(SaleState.crowdSale.start.getTime()/1000);
+      const _now = _start + 3*86400;
+      const _bonus = await token.getTimeBonus(_start, _now);
+      assert.isTrue(_bonus.equals(40), 'must be 40');
+    });
+      
+    it('во вторую неделю краудсейла инвестор получит 28 бонусных токенов за каждый эфир', async function () {
+      const _start = Math.round(SaleState.crowdSale.start.getTime()/1000);
+      const _now = _start + 9*86400;
+      const _bonus = await token.getTimeBonus(_start, _now);
+      assert.isTrue(_bonus.equals(28), 'must be 28');
+    });
+      
+    it('в третью неделю краудсейла инвестор получит 20 бонусных токенов за каждый эфир', async function () {
+      const _start = Math.round(SaleState.crowdSale.start.getTime()/1000);
+      const _now = _start + 16*86400;
+      const _bonus = await token.getTimeBonus(_start, _now);
+      assert.isTrue(_bonus.equals(20), 'must be 20');
+    });
+      
+    it('Начиная с четвертой недели краудсейла инвестор не получает бонусных токенов', async function () {
+      const _start = Math.round(SaleState.crowdSale.start.getTime()/1000);
+      const _now = _start + 23*86400;
+      const _bonus = await token.getTimeBonus(_start, _now);
+      assert.isTrue(_bonus.equals(0), 'must be 0');
+    });
+      
+    it('инвестор вносит 0.01 эфир. Неудачно.', async function () {
+      const { receipt, logs } = await token.sendTransaction({ value: toWei(0.01), from: investor });
+      glogs = logs;
+      assert.equal(receipt.status, 1, 'must be 1');
+      });
+      
+      it('баланс кошелька для собранных средств не изменился', async function () {
+        const _pre = await web3.eth.getBalance(wallet);
+        assert.isTrue(_pre.equals(walletWei), 'must be equal');
+      });
+      
+      it('средства были возвращены инвестору', async function () {
+      const event = glogs.find(e => e.event === 'MinimumPaymentNotReached' &&
+                   e.args.payer === investor && e.args.weiAmount.equals(toWei(0.01)));
+      expect(event, 'должно было произойти событие MinimumPaymentNotReached').to.exist;
+    
+      const event1 = glogs.find(e => e.event === 'RedundantFundsReturned' &&
+                     e.args.payer === investor && e.args.amount.equals(toWei(0.01)));
+      expect(event1, 'должно было произойти событие RedundantFundsReturned').to.exist;
+      });
+    
+  /*  it('should be ended only after end', async function () {
     let ended = await this.crowdsale.hasEnded();
     ended.should.equal(false);
     await increaseTimeTo(this.afterEndTime);

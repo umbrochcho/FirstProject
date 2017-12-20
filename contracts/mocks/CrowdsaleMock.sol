@@ -55,4 +55,32 @@ contract CrowdsaleMock is AltairVR {
       	  _min = 0;
       }
   }
+
+  function getRealRate(uint256 _stateStart, uint256 _now, uint256 _amount) public view returns (uint256 realRate) {
+      realRate = rate.add(getAmountWeiBonus(_amount)).add(getTimeBonus(_stateStart, _now));
+  }
+
+  function getPublicPresaleStart() public pure returns (uint256 _time) {
+      _time = startPublicPresale;
+  }
+
+  function getPublicPresaleEnd() public pure returns (uint256 _time) {
+      _time = endPublicPresale;
+  }
+
+  function getPublicPresaleDuration() public pure returns (uint256 _time) {
+      _time = durationPublicPresale;
+  }
+
+  function getCrowdsaleStart() public pure returns (uint256 _time) {
+      _time = startCrowdsale;
+  }
+
+  function getCrowdsaleEnd() public pure returns (uint256 _time) {
+      _time = endCrowdsale;
+  }
+
+  function getCrowdsaleDuration() public pure returns (uint256 _time) {
+      _time = durationCrowdsale;
+  }
 }
